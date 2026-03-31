@@ -395,7 +395,7 @@ STEP 3 — NAVIGATE TO THE PROJECT FOLDER:
     cd path/to/ChessWBA
 
   Example on Windows:
-    cd E:\NetStock\ChessWBA
+    cd E:\Skaak\ChessWBA
 
   Example on Mac/Linux:
     cd ~/projects/ChessWBA
