@@ -80,11 +80,7 @@ SQLITE (Database)
   server, and is perfect for a project of this size. The  SQL library
   is used to query it safely.
 
-CS50 SQL LIBRARY
-  This is the same database library used in CS50 Finance. It wraps SQLite
-  and makes queries safe by automatically using parameterized placeholders,
-  which prevents SQL injection attacks. Every database call in app.py uses:
-    db.execute("SELECT * FROM users WHERE id = ?", user_id)
+
 
 JINJA2 (HTML Templating)
   Jinja2 is Flask's built-in templating engine. It lets me write HTML files
