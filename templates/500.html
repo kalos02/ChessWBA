@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 - Server Error</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <main style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+        <div class="container" style="max-width: 500px; text-align: center;">
+            <div class="card">
+                <div style="font-size: 5rem; margin-bottom: 1rem;">⚡</div>
+                <h1 style="margin-bottom: 0.5rem; color: var(--accent);">500 - Checkmate</h1>
+                <p style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-light);">Our server hit an unexpected problem.</p>
+                <p style="font-size: 0.9rem; margin-bottom: 2rem; color: var(--text-light);">Our team has been notified and is working on a fix. We're sorry for the disruption!</p>
+                <a href="/" class="btn btn-primary">🏠 Return to Leaderboard</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

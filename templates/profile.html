@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ user.first_name }} {{ user.last_name }} - Chess Club{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div>
+            <h1>{{ user.first_name }} {{ user.last_name }}</h1>
+            <p class="text-muted">@{{ user.username }} • Joined on {% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}...{% endif %}</p>
+        </div>
+        {% if is_own_profile %}
+        <a href="/edit_profile" class="btn btn-primary"> Edit Profile</a>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-bottom: 2rem;">
+    <div class="card" style="text-align: center;">
+        <div class="avatar-circle lg" style="margin: 0 auto 1.5rem; display: flex;">
+            {% if user.avatar_filename %}
+                <img src="{{ url_for('static', filename='uploads/' + user.avatar_filename) }}" alt="{{ user.first_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+                {{ get_initials(user.first_name, user.last_name) }}
+            {% endif %}
+        </div>
+        <div>
+            <h2 style="margin-bottom: 0.75rem; color: var(--accent); font-size: 2.5rem;">#{{ user.rank }}</h2>
+            {% if user.rank == 1 %}
+                <span class="badge primary"> #1 Champion</span>
+            {% elif user.rank <= 3 %}
+                <span class="badge success"> Top 3</span>
+            {% else %}
+                <span class="badge primary">Active Member</span>
+            {% endif %}
+        </div>
+        {% if user.birthday %}
+        <p class="text-muted" style="margin-top: 1.5rem; font-size: 0.9rem;"><strong> Celebrates:</strong> {{ user.birthday }}</p>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">🎮 Games Played</div>
+                <div class="stat-value">{{ user.games_played }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"> Wins</div>
+                <div class="stat-value accent">{{ wins }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"> Draws</div>
+                <div class="stat-value">{{ draws }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"> Losses</div>
+                <div class="stat-value">{{ losses }}</div>
+            </div>
+        </div>
+
+        {% if user.games_played > 0 %}
+        <div style="margin-top: 2rem; background: var(--bg-light); padding: 1.5rem; border-radius: 12px;">
+            <h3 style="margin-bottom: 1rem;">Win Rate</h3>
+            {% set win_rate = (wins / user.games_played * 100)|round(1) %}
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="flex: 1; height: 28px; background: white; border-radius: 14px; overflow: hidden; border: 2px solid var(--border);">
+                    <div style="height: 100%; background: linear-gradient(90deg, var(--success) 0%, var(--accent) 100%); width: {{ win_rate }}%;"></div>
+                </div>
+                <span style="font-weight: 700; font-size: 1.2rem; color: var(--accent);">{{ win_rate }}%</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if matches %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title"> Recent Matches (Last 10)</h2>
+    </div>
+
+    <table style="width: 100%;">
+        <thead>
+            <tr>
+                <th>Opponent</th>
+                <th>Result</th>
+                <th style="width: 150px;">Rank Change</th>
+                <th style="width: 150px;">Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for match in matches %}
+            <tr>
+                <td>
+                    <a href="/profile/{{ match.opponent_id }}" style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="avatar-circle" style="width: 32px; height: 32px;">
+                            {{ get_initials(match.opponent_name.split()[0], match.opponent_name.split()[1] if match.opponent_name.split()|length > 1 else '') }}
+                        </div>
+                        {{ match.opponent_name }}
+                    </a>
+                </td>
+                <td>
+                    {% if match.winner_id == user.id %}
+                        <span class="badge success">Won</span>
+                    {% elif match.winner_id is none %}
+                        <span class="badge primary">Draw</span>
+                    {% else %}
+                        <span class="badge error">Lost</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if match.player1_id == user.id %}
+                        {% set rank_before = match.p1_rank_before %}
+                        {% set rank_after = match.p1_rank_after %}
+                    {% else %}
+                        {% set rank_before = match.p2_rank_before %}
+                        {% set rank_after = match.p2_rank_after %}
+                    {% endif %}
+                    {% set delta = rank_before - rank_after %}
+                    {% if delta > 0 %}
+                        <span class="delta-pill positive">↑ {{ delta }}</span>
+                    {% elif delta < 0 %}
+                        <span class="delta-pill negative">↓ {{ delta|abs }}</span>
+                    {% else %}
+                        <span class="delta-pill neutral">— No change</span>
+                    {% endif %}
+                </td>
+                <td class="text-muted">{{ match.played_at[:10] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p class="text-center text-muted">No matches played yet</p>
+</div>
+{% endif %}
+{% endblock %}

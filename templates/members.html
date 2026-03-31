@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+
+{% block title %}Members - Chess Club{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1> Community Members</h1>
+    <p>Meet {{ users|length }} amazing chess players</p>
+</div>
+
+<div class="table-container">
+    <div class="table-search">
+        <input type="text" id="search" placeholder="Search members by name or username...">
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 80px;">Rank</th>
+                <th>Member</th>
+                <th style="width: 100px;">Games</th>
+                <th style="width: 100px;">Joined</th>
+                <th style="width: 150px;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            {% for user in users %}
+            <tr class="table-row">
+                <td>
+                    <span class="rank-badge {% if user.rank == 1 %}gold{% elif user.rank == 2 %}silver{% elif user.rank == 3 %}bronze{% endif %}">
+                        <span>#{{ user.rank }}</span>
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div class="avatar-circle">
+                            {% if user.avatar_filename %}
+                                <img src="{{ url_for('static', filename='uploads/' + user.avatar_filename) }}" alt="{{ user.first_name }}">
+                            {% else %}
+                                {{ get_initials(user.first_name, user.last_name) }}
+                            {% endif %}
+                        </div>
+                        <div>
+                            <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+                            <div class="text-muted" style="font-size: 0.85rem;">@{{ user.username }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>{{ user.games_played }}</td>
+                <td class="text-muted" style="font-size: 0.9rem;">
+                    {% if user.created_at %}
+                        {{ user.created_at[:10] }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/profile/{{ user.id }}" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem; font-size: 0.85rem;">View Profile</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.getElementById('search').addEventListener('keyup', function() {
+    const query = this.value.toLowerCase();
+    const rows = document.querySelectorAll('.table-row');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

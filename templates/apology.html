@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% block title %}Error - Chess Club{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 500px; text-align: center; margin-top: 4rem;">
+    <div class="card">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">😕</div>
+        <h1 style="margin-bottom: 0.5rem; color: var(--accent);">Oops! Something Went Wrong</h1>
+        <p style="font-size: 1rem; margin-bottom: 2rem; color: var(--text-light);">{{ message }}</p>
+        <p style="font-size: 0.9rem; margin-bottom: 2rem; color: var(--text-light);">Don't worry, it happens to the best of us! Head back and try again.</p>
+        <a href="/" class="btn btn-primary">🏠 Back to Leaderboard</a>
+    </div>
+</div>
+{% endblock %}
