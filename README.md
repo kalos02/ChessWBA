@@ -77,7 +77,7 @@ SQLITE (Database)
   SQLite is a file-based relational database. All data — users, matches,
   passwords — is stored in a single file called chess.db. I chose SQLite
   because it requires zero configuration, runs without a separate database
-  server, and is perfect for a project of this size. The cs50 SQL library
+  server, and is perfect for a project of this size. The  SQL library
   is used to query it safely.
 
 CS50 SQL LIBRARY
