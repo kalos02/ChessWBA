@@ -1,4 +1,9 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{#
+    ChessWBA leaderboard page (frontend)
+    - displays user ranks and stats
+#}
 
 {% block title %}Leaderboard - Chess Club{% endblock %}
 
@@ -7,7 +12,380 @@
     <h1> Leaderboard</h1>
     <p>See where you stand in the Chess Club community</p>
 </div>
+<div class="page-header">
+    <h1> USER: {{ current_user_id }}</h1>
+    
+</div>
+<style>
+    .section-gap {
+        margin-top: 24px;
+    }
 
+    .section-title {
+        margin: 0 0 10px;
+        color: var(--text-primary);
+        font-size: 0.98rem;
+        letter-spacing: 0.02em;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+        margin: 0;
+    }
+
+    .chart-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.1rem;
+        box-shadow: var(--shadow-soft);
+    }
+
+    .chart-card h3 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+
+    .chart-description {
+        margin: 0 0 10px;
+        color: var(--text-muted);
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .chart-wrap {
+        position: relative;
+        height: 280px;
+    }
+
+    .chart-control-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 10px;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+    }
+
+    .chart-control-label {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .chart-control-row input[type="range"] {
+        flex: 1;
+        accent-color: var(--accent);
+    }
+
+    .chart-control-value {
+        min-width: 56px;
+        text-align: right;
+        color: var(--accent-alt);
+        font-weight: 700;
+    }
+
+    .chart-card.wide {
+        grid-column: span 6;
+    }
+
+    .chart-card.narrow {
+        grid-column: span 6;
+    }
+
+    @media (max-width: 960px) {
+        .chart-card.wide,
+        .chart-card.narrow {
+            grid-column: span 12;
+        }
+    }
+
+    .tables-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 0;
+    }
+
+    .ranking-toolbar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.9rem;
+        box-shadow: var(--shadow-soft);
+    }
+
+    .search-wrap {
+        min-width: 220px;
+        flex: 1;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .search-wrap input {
+        width: 100%;
+        flex: 1;
+        border: 1px solid var(--divider-strong);
+        background: var(--surface-soft);
+        color: var(--text-primary);
+        border-radius: var(--radius);
+        padding: 0.62rem 0.75rem;
+        font-family: inherit;
+        font-size: 0.9rem;
+        transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .search-wrap input:focus {
+        outline: none;
+        border-color: rgba(34, 211, 238, 0.55);
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+    }
+
+    .search-clear-btn {
+        border: 1px solid var(--divider-strong);
+        background: var(--surface-soft);
+        color: var(--text-muted);
+        border-radius: var(--radius);
+        padding: 0.55rem 0.68rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    }
+
+    .search-clear-btn:hover {
+        background: var(--surface-elevated);
+        color: var(--text-primary);
+    }
+
+    .top-filter-group {
+        display: inline-flex;
+        gap: 6px;
+    }
+
+    .top-filter-btn {
+        border: 1px solid var(--divider-strong);
+        background: var(--surface-soft);
+        color: var(--text-primary);
+        border-radius: var(--radius);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+
+    .top-filter-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(34, 211, 238, 0.35);
+        background: var(--surface-elevated);
+    }
+
+    .top-filter-btn:active {
+        transform: scale(0.97);
+    }
+
+    .top-filter-btn.active {
+        background: rgba(20, 184, 166, 0.16);
+        border-color: rgba(34, 211, 238, 0.42);
+        color: var(--accent-alt);
+    }
+
+    .top-player-highlight {
+        background: linear-gradient(145deg, rgba(20, 184, 166, 0.12), rgba(31, 41, 55, 0.35));
+        border: 1px solid rgba(20, 184, 166, 0.4);
+        border-radius: var(--radius);
+        padding: 1.2rem;
+        box-shadow: var(--shadow-soft);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .highlight-label {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+
+    .highlight-name {
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .highlight-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .highlight-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 10px;
+        color: var(--text-primary);
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .table-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.1rem;
+        box-shadow: var(--shadow-soft);
+    }
+
+    .table-title {
+        margin: 0 0 10px;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+
+    .table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-card table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+    }
+
+    .table-card th,
+    .table-card td {
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .table-card th {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .table-card td {
+        color: var(--text-muted);
+    }
+
+    .table-card tbody tr {
+        transition: background-color 0.14s ease;
+    }
+
+    .table-card tbody tr:hover {
+        background: rgba(34, 211, 238, 0.06);
+    }
+
+    .data-row {
+        transition: opacity 0.24s ease, transform 0.24s ease;
+    }
+
+    .data-row.row-leave,
+    .data-row.row-enter {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    .data-row.row-gone {
+        display: none;
+    }
+
+    .sort-btn {
+        all: unset;
+        cursor: pointer;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .sort-btn .sort-indicator {
+        font-size: 0.8rem;
+        margin-left: 6px;
+        color: var(--text-secondary);
+    }
+
+    .user-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .player-name-link {
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 700;
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 6px;
+        transition: color 0.16s ease, background-color 0.16s ease;
+    }
+
+    .player-name-link:hover {
+        text-decoration: none;
+        color: var(--accent-alt);
+        background: rgba(20, 184, 166, 0.12);
+    }
+
+    .empty-row td {
+        text-align: center;
+        color: var(--text-secondary);
+        padding: 14px 8px;
+    }
+
+    .avatar-circle.small {
+        width: 30px;
+        height: 30px;
+        font-size: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    @media (max-width: 960px) {
+        .top-player-highlight {
+            grid-template-columns: 1fr;
+        }
+
+        .ranking-toolbar {
+            align-items: stretch;
+        }
+
+        .top-filter-group {
+            width: 100%;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+    }
+</style>
+
+{% set top_points_all = (users | sort(attribute='points', reverse=true))[:20] %}
+{% set trend_players_all = (users | sort(attribute='rank')) %}
+{% set trend_default_limit = 5 if (users|length) >= 5 else (users|length) %}
+{% set trend_slider_cap = 12 %}
+{% set trend_slider_max = trend_slider_cap if (users|length) > trend_slider_cap else (users|length) %}
+{% set trend_slider_max = trend_slider_max if trend_slider_max >= 3 else 3 %}
+{% set has_outcome_data = (decisive_matches + draws) > 0 %}
+
+<h3 class="section-title">Statistics</h3>
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-label">Members</div>
@@ -18,72 +396,205 @@
         <div class="stat-value accent">{{ total_matches }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Your Rank</div>
+        <div class="stat-label">Current Rank</div>
         <div class="stat-value accent">#{{ user_rank }}</div>
     </div>
     {% if top_player %}
     <div class="stat-card">
         <div class="stat-label">Top Player</div>
-        <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">{{ top_player.first_name }} {{ top_player.last_name }}</div>
+        <div class="top-player-name">{{ top_player.first_name }} {{ top_player.last_name }}</div>
     </div>
     {% endif %}
 </div>
 
-<div class="table-container">
-    <div class="table-search">
-        <input type="text" id="search" placeholder="Search members...">
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 80px;">Rank</th>
-                <th>Player</th>
-                <th style="width: 100px;">Games</th>
-                <th style="width: 150px;">Action</th>
-            </tr>
-        </thead>
-        <tbody id="table-body">
-            {% for user in users %}
-            <tr class="table-row">
-                <td>
-                    <span class="rank-badge {% if user.rank == 1 %}gold{% elif user.rank == 2 %}silver{% elif user.rank == 3 %}bronze{% endif %}">
-                        <span>#{{ user.rank }}</span>
-                    </span>
-                </td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <div class="avatar-circle">
-                            {% if user.avatar_filename %}
-                                <img src="{{ url_for('static', filename='uploads/' + user.avatar_filename) }}" alt="{{ user.first_name }}">
-                            {% else %}
-                                {{ get_initials(user.first_name, user.last_name) }}
-                            {% endif %}
-                        </div>
-                        <div>
-                            <strong>{{ user.first_name }} {{ user.last_name }}</strong>
-                            <div class="text-muted" style="font-size: 0.85rem;">@{{ user.username }}</div>
-                        </div>
-                    </div>
-                </td>
-                <td>{{ user.games_played }}</td>
-                <td>
-                    <a href="/profile/{{ user.id }}" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem; font-size: 0.85rem;">View Profile</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<section id="charts" class="section-gap">
+    <h3 class="section-title">Performance Charts</h3>
+    <div class="charts-grid">
+    <article class="chart-card wide">
+        <h3>Top Players by Points</h3>
+        <p class="chart-description">This chart shows the top players based on points.</p>
+        <div class="chart-control-row">
+            <label for="top-players-range" class="chart-control-label">Show Top Players</label>
+            <input id="top-players-range" type="range" min="5" max="20" value="5" step="1">
+            <span id="top-players-range-value" class="chart-control-value">Top 5</span>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="topPointsChart"></canvas>
+        </div>
+    </article>
 
-<script>
-document.getElementById('search').addEventListener('keyup', function() {
-    const query = this.value.toLowerCase();
-    const rows = document.querySelectorAll('.table-row');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
-    });
-});
-</script>
+    <article class="chart-card wide">
+        <h3>Ranking Trend</h3>
+        <p class="chart-description">This chart simulates how rankings may change over time for top-ranked players. Lower values indicate better ranks (Rank 1 is best).</p>
+        <div class="chart-control-row">
+            <label for="ranking-trend-range" class="chart-control-label">Number of players to display</label>
+            <input id="ranking-trend-range" type="range" min="3" max="{{ trend_slider_max }}" value="{{ trend_default_limit }}" step="1">
+            <span id="ranking-trend-range-value" class="chart-control-value">Top {{ trend_default_limit }}</span>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="rankingTrendChart"></canvas>
+        </div>
+    </article>
+
+    <article class="chart-card narrow">
+        <h3>All-Time Match Outcomes (Club Overview)</h3>
+        <p class="chart-description">
+            This chart shows how all recorded matches in the club have ended. It compares how many games produced a winner versus how many ended in a draw.
+            {% if not has_outcome_data %}No match data yet.{% endif %}
+        </p>
+        <p class="chart-description">Total Matches: {{ decisive_matches + draws }}</p>
+        <div class="chart-wrap">
+            <canvas id="winRatioChart"></canvas>
+        </div>
+    </article>
+    </div>
+</section>
+
+{% if top_player %}
+<section class="section-gap">
+    <article class="top-player-highlight">
+        <div>
+            <div class="highlight-label">Top Player Highlight</div>
+            <div class="highlight-name">#1 {{ top_player.first_name }} {{ top_player.last_name }}</div>
+            <div class="highlight-metrics">
+                <span class="highlight-pill">Points: {{ top_player.points }}</span>
+                <span class="highlight-pill">Win Ratio: {{ top_player.win_ratio }}%</span>
+            </div>
+        </div>
+        <span class="avatar-circle">{{ get_initials(top_player.first_name, top_player.last_name) }}</span>
+    </article>
+</section>
+{% endif %}
+
+<section id="rankings" class="tables-grid section-gap">
+    <h3 class="section-title">Rankings</h3>
+    <div class="ranking-toolbar" aria-label="Ranking controls">
+        <div class="search-wrap">
+            <input id="ranking-search" type="text" placeholder="Search players..." autocomplete="off">
+            <button id="ranking-search-clear" type="button" class="search-clear-btn" aria-label="Clear search">&times;</button>
+        </div>
+        <div class="top-filter-group" role="group" aria-label="Top players filter">
+            <button type="button" class="top-filter-btn active" data-top="all">All</button>
+            <button type="button" class="top-filter-btn" data-top="5">Top 5</button>
+            <button type="button" class="top-filter-btn" data-top="10">Top 10</button>
+        </div>
+    </div>
+
+    <article class="table-card">
+        <h3 class="table-title">By Rank</h3>
+        <div class="table-scroll">
+            <table id="by-rank-table">
+                <thead>
+                    <tr>
+                        <th>
+                            <button type="button" class="sort-btn" data-sort-key="rank" data-sort-type="number" data-sort-order="asc">
+                                Rank <span class="sort-indicator">▲</span>
+                            </button>
+                        </th>
+                        <th>Avatar</th>
+                        <th>
+                            <button type="button" class="sort-btn" data-sort-key="name" data-sort-type="string" data-sort-order="asc">
+                                Full Name <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="sort-btn" data-sort-key="points" data-sort-type="number" data-sort-order="asc">
+                                Points <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="sort-btn" data-sort-key="matches" data-sort-type="number" data-sort-order="asc">
+                                Matches Played <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="sort-btn" data-sort-key="ratio" data-sort-type="number" data-sort-order="asc">
+                                Win Ratio <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr
+                        class="data-row"
+                        data-rank="{{ user.rank }}"
+                        data-name="{{ user.first_name }} {{ user.last_name }}"
+                        data-points="{{ user.points }}"
+                        data-matches="{{ user.matches_played }}"
+                        data-ratio="{{ user.win_ratio }}"
+                    >
+                        <td>#{{ user.rank }}</td>
+                        <td>
+                            <span class="avatar-circle small">{{ get_initials(user.first_name, user.last_name) }}</span>
+                        </td>
+                        <td>
+                            <div class="user-cell">
+                                <a href="/profile/{{ user.id }}" class="player-name-link">{{ user.first_name }} {{ user.last_name }}</a>
+                            </div>
+                        </td>
+                        <td>{{ user.points }}</td>
+                        <td>{{ user.matches_played }}</td>
+                        <td>{{ user.win_ratio }}%</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="empty-row" data-empty-row="rank" {% if users %}style="display:none;"{% endif %}>
+                        <td colspan="6">No players match your search</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="table-card">
+        <h3 class="table-title">By Points</h3>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Avatar</th>
+                        <th>Full Name</th>
+                        <th>Points</th>
+                        <th>Matches Played</th>
+                        <th>Win Ratio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in points_users %}
+                    <tr class="data-row" data-name="{{ user.first_name }} {{ user.last_name }}">
+                        <td>#{{ user.rank }}</td>
+                        <td>
+                            <span class="avatar-circle small">{{ get_initials(user.first_name, user.last_name) }}</span>
+                        </td>
+                        <td><a href="/profile/{{ user.id }}" class="player-name-link">{{ user.first_name }} {{ user.last_name }}</a></td>
+                        <td>{{ user.points }}</td>
+                        <td>{{ user.matches_played }}</td>
+                        <td>{{ user.win_ratio }}%</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="empty-row" data-empty-row="points" {% if points_users %}style="display:none;"{% endif %}>
+                        <td colspan="6">No players match your search</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+<script id="dashboard-data-top-labels" type="application/json">{{ top_points_all | map(attribute='first_name') | list | tojson }}</script>
+<script id="dashboard-data-top-values" type="application/json">{{ top_points_all | map(attribute='points') | list | tojson }}</script>
+<script id="dashboard-data-trend-players" type="application/json">[
+{% for p in trend_players_all %}
+    {"name": {{ (p.first_name ~ ' ' ~ p.last_name) | tojson }}, "rank": {{ p.rank }}}{% if not loop.last %},{% endif %}
+{% endfor %}
+]</script>
+<div
+    id="dashboard-config"
+    data-trend-default-limit="{{ trend_default_limit }}"
+    data-decisive-matches="{{ decisive_matches | default(0) }}"
+    data-draws="{{ draws | default(0) }}"
+    hidden
+></div>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

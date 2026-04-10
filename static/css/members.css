@@ -1,0 +1,229 @@
+.members-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.members-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 16px;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.members-modal-backdrop.is-open {
+    opacity: 1;
+}
+
+.members-modal {
+    width: min(560px, 100%);
+    background: var(--surface, #111827);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 12px;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateY(6px) scale(0.985);
+    transition: transform 0.18s ease;
+}
+
+.members-modal-backdrop.is-open .members-modal {
+    transform: translateY(0) scale(1);
+}
+
+.members-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+
+.members-modal-title {
+    margin: 0;
+    font-size: 1.02rem;
+    color: var(--text-primary, #f9fafb);
+}
+
+.members-modal-close {
+    border: 1px solid var(--divider-strong, rgba(255, 255, 255, 0.18));
+    background: transparent;
+    color: var(--text-primary, #f9fafb);
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+}
+
+.members-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.members-modal-body {
+    padding: 14px 16px 16px;
+}
+
+.members-delete-text {
+    margin: 0;
+}
+
+.members-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 16px 16px;
+}
+
+.members-modal-footer .btn {
+    min-width: 96px;
+}
+
+.members-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.members-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.members-field.full {
+    grid-column: span 2;
+}
+
+.members-field label {
+    color: var(--text-muted, #a1a1aa);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.members-field input {
+    border: 1px solid var(--divider-strong, rgba(255, 255, 255, 0.18));
+    background: var(--surface-soft, #0f172a);
+    color: var(--text-primary, #f9fafb);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+    min-height: 38px;
+    padding: 0.56rem 0.9rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-danger:hover {
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    border-color: #ef4444;
+    color: #fee2e2;
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.row-actions .btn {
+    min-height: 32px;
+    padding: 0.34rem 0.62rem;
+    font-size: 0.78rem;
+}
+
+.row-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-container th,
+.table-container td {
+    padding: 11px 10px;
+    vertical-align: middle;
+}
+
+.table-container th {
+    text-align: left;
+}
+
+.table-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--surface, #111827);
+}
+
+.table-container tbody tr {
+    transition: background-color 0.14s ease;
+}
+
+.table-container tbody tr:hover {
+    background: rgba(34, 211, 238, 0.06);
+}
+
+.col-80 {
+    width: 80px;
+}
+
+.col-100 {
+    width: 100px;
+}
+
+.col-120 {
+    width: 120px;
+}
+
+.col-150 {
+    width: 150px;
+}
+
+@media (max-width: 720px) {
+    .members-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .members-toolbar .table-search {
+        width: 100%;
+    }
+
+    .members-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .members-field.full {
+        grid-column: span 1;
+    }
+}

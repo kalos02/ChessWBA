@@ -1,4 +1,10 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{#
+    ChessWBA match page (frontend)
+    - shows match record form, ranking preview, and connects to /api/preview_match
+    - includes in-page JS for result selection and API requests
+#}
 
 {% block title %}Record Match - Chess Club{% endblock %}
 
@@ -8,7 +14,7 @@
     <p>Log a match result and watch rankings update automatically</p>
 </div>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+<div class="two-col-grid">
     <div class="card">
         <div class="card-header">
             <h2 class="card-title">Match Details</h2>
@@ -23,7 +29,7 @@
                 <label for="player1_id">First Player</label>
                 <span class="label-hint">The player on the white side</span>
                 <select id="player1_id" name="player1_id" required onchange="updatePreview()">
-                    <option value="">— Choose a player —</option>
+                    <option value="">Choose a player</option>
                     {% for user in users %}
                     <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.rank }})</option>
                     {% endfor %}
@@ -34,7 +40,7 @@
                 <label for="player2_id">Second Player</label>
                 <span class="label-hint">The player on the black side</span>
                 <select id="player2_id" name="player2_id" required onchange="updatePreview()">
-                    <option value="">— Choose a player —</option>
+                    <option value="">Choose a player</option>
                     {% for user in users %}
                     <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.rank }})</option>
                     {% endfor %}
@@ -45,14 +51,14 @@
                 <label>Who Won?</label>
                 <span class="label-hint">Select the match result</span>
                 <div class="result-buttons">
-                    <button type="button" class="result-btn" onclick="setResult('p1', this)">White Wins ♔</button>
-                    <button type="button" class="result-btn" onclick="setResult('draw', this)">Draw ♚</button>
-                    <button type="button" class="result-btn" onclick="setResult('p2', this)">Black Wins ♔</button>
+                    <button type="button" class="result-btn" onclick="setResult('p1', this)">White Wins</button>
+                    <button type="button" class="result-btn" onclick="setResult('draw', this)">Draw</button>
+                    <button type="button" class="result-btn" onclick="setResult('p2', this)">Black Wins</button>
                 </div>
                 <input type="hidden" id="result" name="result" required>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Record This Match</button>
+            <button type="submit" class="btn btn-primary btn-block mt-1">Record This Match</button>
         </form>
     </div>
 
@@ -61,18 +67,18 @@
             <div class="card-header">
                 <h2 class="card-title">How Ranking Works</h2>
             </div>
-            <div style="font-size: 0.9rem; line-height: 1.8; color: var(--text-dark);">
-                <p><strong style="color: var(--accent);">Smaller rank number = Better</strong></p>
+            <div class="rules-copy">
+                <p><strong class="accent-text">Smaller rank number = Better</strong></p>
                 <p>#1 is the #1 ranked player! </p>
                 <div class="divider"></div>
                 
-                <p><strong>📋 Fair Matching:</strong></p>
+                <p><strong>Fair Matching:</strong></p>
                 <p>Our ranking system rewards good performances and helps all skill levels play fairly.</p>
                 
                 <div class="divider"></div>
                 
                 <p><strong> Rewards:</strong></p>
-                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <ul class="rules-list">
                     <li>Upsets earn you more points</li>
                     <li>Draws help lower-ranked players</li>
                     <li>Consistent wins = steady climbing</li>
@@ -80,20 +86,20 @@
             </div>
         </div>
 
-        <div id="preview-box" class="preview-box hidden" style="margin-top: 2rem;">
+        <div id="preview-box" class="preview-box hidden mt-2">
             <div class="preview-title"> Live Ranking Preview</div>
-            <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 1rem;">This shows how ranks will change when you record this match:</p>
+            <p class="text-muted preview-note">This shows how ranks will change when you record this match:</p>
             <div class="preview-players">
                 <div class="preview-player">
                     <div class="preview-player-name" id="p1-name">White Player</div>
                     <div class="preview-ranks">
                         <div class="preview-rank-item">
                             <div class="preview-rank-label">Currently</div>
-                            <div class="preview-rank-value" id="p1-before">—</div>
+                            <div class="preview-rank-value" id="p1-before">-</div>
                         </div>
                         <div class="preview-rank-item">
                             <div class="preview-rank-label">After</div>
-                            <div class="preview-rank-value" id="p1-after">—</div>
+                            <div class="preview-rank-value" id="p1-after">-</div>
                         </div>
                     </div>
                 </div>
@@ -102,11 +108,11 @@
                     <div class="preview-ranks">
                         <div class="preview-rank-item">
                             <div class="preview-rank-label">Currently</div>
-                            <div class="preview-rank-value" id="p2-before">—</div>
+                            <div class="preview-rank-value" id="p2-before">-</div>
                         </div>
                         <div class="preview-rank-item">
                             <div class="preview-rank-label">After</div>
-                            <div class="preview-rank-value" id="p2-after">—</div>
+                            <div class="preview-rank-value" id="p2-after">-</div>
                         </div>
                     </div>
                 </div>
@@ -139,16 +145,19 @@ async function updatePreview() {
     }
 
     try {
+        const requestData = {
+            player1_id: parseInt(p1_id),
+            player2_id: parseInt(p2_id),
+            result: result,
+            winner_id: result === 'p1' ? parseInt(p1_id) : (result === 'p2' ? parseInt(p2_id) : null)
+        };
+
         const response = await fetch('/api/preview_match', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                player1_id: parseInt(p1_id),
-                player2_id: parseInt(p2_id),
-                winner_id: result === 'p1' ? parseInt(p1_id) : (result === 'p2' ? parseInt(p2_id) : null)
-            })
+            body: JSON.stringify(requestData)
         });
 
         const data = await response.json();
@@ -162,8 +171,12 @@ async function updatePreview() {
             document.getElementById('p2-after').textContent = data.p2_rank_after;
 
             document.getElementById('preview-box').classList.remove('hidden');
+        } else {
+            document.getElementById('preview-box').classList.add('hidden');
+            console.error('Preview request failed:', data.error || data);
         }
     } catch (error) {
+        document.getElementById('preview-box').classList.add('hidden');
         console.error('Error:', error);
     }
 }

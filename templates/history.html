@@ -1,4 +1,9 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{#
+    ChessWBA match history page (frontend)
+    - shows past matches from /history
+#}
 
 {% block title %}Match History - Chess Club{% endblock %}
 
@@ -13,32 +18,33 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 120px;">Date</th>
+                <th class="col-120">Date</th>
                 <th>Player 1</th>
                 <th>Player 2</th>
                 <th>Result</th>
-                <th style="width: 150px;">P1 Rank Change</th>
-                <th style="width: 150px;">P2 Rank Change</th>
+                <th class="col-150">P1 Rank Change</th>
+                <th class="col-150">P2 Rank Change</th>
             </tr>
         </thead>
         <tbody>
             {% for match in matches %}
             <tr>
-                <td class="text-muted" style="font-size: 0.9rem;">{{ match.played_at[:10] }}</td>
+                <td class="text-muted cell-date">{{ match.played_at[:10] if match.played_at else '-' }}</td>
+                    <td class="text-muted cell-date">{{ match.played_at[:10] if match.played_at else '-' }}</td>
                 <td>
-                    <a href="/profile/{{ match.player1_id }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
-                        <div class="avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                    <a href="/profile/{{ match.player1_id }}" class="player-link">
+                        <div class="avatar-circle avatar-xs">
                             {{ get_initials(match.player1_name.split()[0], match.player1_name.split()[1] if match.player1_name.split()|length > 1 else '') }}
                         </div>
-                        <span style="color: var(--accent);">{{ match.player1_name }}</span>
+                        <span>{{ match.player1_name }}</span>
                     </a>
                 </td>
                 <td>
-                    <a href="/profile/{{ match.player2_id }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
-                        <div class="avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                    <a href="/profile/{{ match.player2_id }}" class="player-link">
+                        <div class="avatar-circle avatar-xs">
                             {{ get_initials(match.player2_name.split()[0], match.player2_name.split()[1] if match.player2_name.split()|length > 1 else '') }}
                         </div>
-                        <span style="color: var(--accent);">{{ match.player2_name }}</span>
+                        <span>{{ match.player2_name }}</span>
                     </a>
                 </td>
                 <td>
@@ -51,23 +57,31 @@
                     {% endif %}
                 </td>
                 <td>
+                    {% if match.p1_rank_before is not none and match.p1_rank_after is not none %}
                     {% set p1_delta = match.p1_rank_before - match.p1_rank_after %}
                     {% if p1_delta > 0 %}
-                        <span class="delta-pill positive">↑ #{{ match.p1_rank_before }} → #{{ match.p1_rank_after }}</span>
+                            <span class="delta-pill positive">+#{{ match.p1_rank_before }} to #{{ match.p1_rank_after }}</span>
                     {% elif p1_delta < 0 %}
-                        <span class="delta-pill negative">↓ #{{ match.p1_rank_before }} → #{{ match.p1_rank_after }}</span>
+                            <span class="delta-pill negative">-#{{ match.p1_rank_before }} to #{{ match.p1_rank_after }}</span>
                     {% else %}
-                        <span class="delta-pill neutral">— #{{ match.p1_rank_before }}</span>
+                            <span class="delta-pill neutral">#{{ match.p1_rank_before }}</span>
+                    {% endif %}
+                    {% else %}
+                            <span class="delta-pill neutral">Pending</span>
                     {% endif %}
                 </td>
                 <td>
+                    {% if match.p2_rank_before is not none and match.p2_rank_after is not none %}
                     {% set p2_delta = match.p2_rank_before - match.p2_rank_after %}
                     {% if p2_delta > 0 %}
-                        <span class="delta-pill positive">↑ #{{ match.p2_rank_before }} → #{{ match.p2_rank_after }}</span>
+                            <span class="delta-pill positive">+#{{ match.p2_rank_before }} to #{{ match.p2_rank_after }}</span>
                     {% elif p2_delta < 0 %}
-                        <span class="delta-pill negative">↓ #{{ match.p2_rank_before }} → #{{ match.p2_rank_after }}</span>
+                            <span class="delta-pill negative">-#{{ match.p2_rank_before }} to #{{ match.p2_rank_after }}</span>
                     {% else %}
-                        <span class="delta-pill neutral">— #{{ match.p2_rank_before }}</span>
+                            <span class="delta-pill neutral">#{{ match.p2_rank_before }}</span>
+                    {% endif %}
+                    {% else %}
+                            <span class="delta-pill neutral">Pending</span>
                     {% endif %}
                 </td>
             </tr>
@@ -77,7 +91,7 @@
 </div>
 {% else %}
 <div class="card">
-    <p class="text-center text-muted" style="padding: 2rem;">No matches have been played yet. <a href="/match">Record the first match</a>!</p>
+    <p class="text-center text-muted empty-state">No matches have been played yet. <a href="/match">Record the first match</a>!</p>
 </div>
 {% endif %}
 {% endblock %}

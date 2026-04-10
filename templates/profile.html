@@ -1,140 +1,292 @@
-{% extends "layout.html" %}
+﻿{% extends "base.html" %}
+
+{#
+    ChessWBA profile page (frontend)
+    - shows user stats and recent matches for profile user
+#}
 
 {% block title %}{{ user.first_name }} {{ user.last_name }} - Chess Club{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div style="display: flex; justify-content: space-between; align-items: start;">
-        <div>
-            <h1>{{ user.first_name }} {{ user.last_name }}</h1>
-            <p class="text-muted">@{{ user.username }} • Joined on {% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}...{% endif %}</p>
-        </div>
-        {% if is_own_profile %}
-        <a href="/edit_profile" class="btn btn-primary"> Edit Profile</a>
-        {% endif %}
-    </div>
-</div>
+<style>
+    .profile-shell {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 16px;
+        margin-top: 12px;
+    }
 
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-bottom: 2rem;">
-    <div class="card" style="text-align: center;">
-        <div class="avatar-circle lg" style="margin: 0 auto 1.5rem; display: flex;">
-            {% if user.avatar_filename %}
-                <img src="{{ url_for('static', filename='uploads/' + user.avatar_filename) }}" alt="{{ user.first_name }}" style="width: 100%; height: 100%; object-fit: cover;">
-            {% else %}
-                {{ get_initials(user.first_name, user.last_name) }}
-            {% endif %}
-        </div>
-        <div>
-            <h2 style="margin-bottom: 0.75rem; color: var(--accent); font-size: 2.5rem;">#{{ user.rank }}</h2>
-            {% if user.rank == 1 %}
-                <span class="badge primary"> #1 Champion</span>
-            {% elif user.rank <= 3 %}
-                <span class="badge success"> Top 3</span>
-            {% else %}
-                <span class="badge primary">Active Member</span>
-            {% endif %}
-        </div>
-        {% if user.birthday %}
-        <p class="text-muted" style="margin-top: 1.5rem; font-size: 0.9rem;"><strong> Celebrates:</strong> {{ user.birthday }}</p>
-        {% endif %}
-    </div>
+    .profile-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.1rem;
+        box-shadow: var(--shadow-soft);
+    }
 
-    <div>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">🎮 Games Played</div>
-                <div class="stat-value">{{ user.games_played }}</div>
+    .profile-avatar-lg {
+        width: 78px;
+        height: 78px;
+        font-size: 1.35rem;
+        margin: 0 auto 10px;
+    }
+
+    .profile-name {
+        margin: 0;
+        font-size: 1.35rem;
+        color: var(--text-primary);
+    }
+
+    .profile-subtle {
+        margin: 6px 0 0;
+        color: var(--text-secondary);
+        font-size: 0.92rem;
+    }
+
+    .profile-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .profile-stat {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        background: var(--surface-soft);
+    }
+
+    .profile-stat-label {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        margin-bottom: 3px;
+    }
+
+    .profile-stat-value {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+
+    .profile-details {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .profile-detail-row {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        gap: 8px;
+    }
+
+    .profile-detail-key {
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    .profile-actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .player-link {
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 600;
+        border-radius: 6px;
+        padding: 2px 4px;
+        transition: color 0.14s ease, background-color 0.14s ease;
+    }
+
+    .player-link:hover {
+        text-decoration: none;
+        color: var(--accent-alt);
+        background: rgba(15, 118, 110, 0.09);
+    }
+
+    .matches-card {
+        margin-top: 16px;
+    }
+
+    .matches-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .recent-table th,
+    .recent-table td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+    }
+
+    .recent-table tbody tr {
+        transition: background-color 0.14s ease;
+    }
+
+    .recent-table tbody tr:hover {
+        background: rgba(34, 211, 238, 0.05);
+    }
+
+    .empty-state-friendly {
+        padding: 16px;
+        text-align: center;
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 960px) {
+        .profile-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-detail-row {
+            grid-template-columns: 1fr;
+            gap: 2px;
+        }
+    }
+</style>
+
+{% set matches_played = wins + draws + losses %}
+{% set win_ratio = ((wins * 100.0) / matches_played) if matches_played > 0 else 0 %}
+
+<div class="profile-shell">
+    <article class="profile-card text-center">
+        <div class="avatar-circle profile-avatar-lg">{{ get_initials(user.first_name, user.last_name) }}</div>
+        <h1 class="profile-name">{{ user.first_name }} {{ user.last_name }}</h1>
+        <p class="profile-subtle">Club Player</p>
+
+        <div class="profile-stat-grid">
+            <div class="profile-stat">
+                <div class="profile-stat-label">Rank</div>
+                <div class="profile-stat-value">#{{ user.rank }}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label"> Wins</div>
-                <div class="stat-value accent">{{ wins }}</div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Points</div>
+                <div class="profile-stat-value">{{ user.points }}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label"> Draws</div>
-                <div class="stat-value">{{ draws }}</div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Matches Played</div>
+                <div class="profile-stat-value">{{ matches_played }}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label"> Losses</div>
-                <div class="stat-value">{{ losses }}</div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Win Ratio</div>
+                <div class="profile-stat-value">{{ '%.1f'|format(win_ratio) }}%</div>
             </div>
         </div>
 
-        {% if user.games_played > 0 %}
-        <div style="margin-top: 2rem; background: var(--bg-light); padding: 1.5rem; border-radius: 12px;">
-            <h3 style="margin-bottom: 1rem;">Win Rate</h3>
-            {% set win_rate = (wins / user.games_played * 100)|round(1) %}
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="flex: 1; height: 28px; background: white; border-radius: 14px; overflow: hidden; border: 2px solid var(--border);">
-                    <div style="height: 100%; background: linear-gradient(90deg, var(--success) 0%, var(--accent) 100%); width: {{ win_rate }}%;"></div>
-                </div>
-                <span style="font-weight: 700; font-size: 1.2rem; color: var(--accent);">{{ win_rate }}%</span>
+        <div class="profile-actions">
+            <a href="/" class="btn btn-primary">Back to Leaderboard</a>
+            <a href="/members?editId={{ user.id }}" class="btn btn-secondary">Edit Player</a>
+        </div>
+    </article>
+
+    <article class="profile-card">
+        <h2 class="card-title">Player Details</h2>
+        <div class="profile-details">
+            <div class="profile-detail-row">
+                <div class="profile-detail-key">Full Name</div>
+                <div>{{ user.first_name }} {{ user.last_name }}</div>
+            </div>
+            <div class="profile-detail-row">
+                <div class="profile-detail-key">Email</div>
+                <div>{{ user.email or 'N/A' }}</div>
+            </div>
+            <div class="profile-detail-row">
+                <div class="profile-detail-key">Date Joined</div>
+                <div>{% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}N/A{% endif %}</div>
+            </div>
+            <div class="profile-detail-row">
+                <div class="profile-detail-key">Date of Birth</div>
+                <div>{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth and user.date_of_birth.strftime is defined else (user.date_of_birth.split(' ')[0] if user.date_of_birth else 'N/A') }}</div>
             </div>
         </div>
-        {% endif %}
-    </div>
+    </article>
 </div>
 
 {% if matches %}
-<div class="card">
+<div class="card matches-card">
     <div class="card-header">
         <h2 class="card-title"> Recent Matches (Last 10)</h2>
     </div>
 
-    <table style="width: 100%;">
-        <thead>
-            <tr>
-                <th>Opponent</th>
-                <th>Result</th>
-                <th style="width: 150px;">Rank Change</th>
-                <th style="width: 150px;">Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for match in matches %}
-            <tr>
-                <td>
-                    <a href="/profile/{{ match.opponent_id }}" style="display: flex; align-items: center; gap: 0.75rem;">
-                        <div class="avatar-circle" style="width: 32px; height: 32px;">
-                            {{ get_initials(match.opponent_name.split()[0], match.opponent_name.split()[1] if match.opponent_name.split()|length > 1 else '') }}
-                        </div>
-                        {{ match.opponent_name }}
-                    </a>
-                </td>
-                <td>
-                    {% if match.winner_id == user.id %}
-                        <span class="badge success">Won</span>
-                    {% elif match.winner_id is none %}
-                        <span class="badge primary">Draw</span>
-                    {% else %}
-                        <span class="badge error">Lost</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if match.player1_id == user.id %}
-                        {% set rank_before = match.p1_rank_before %}
-                        {% set rank_after = match.p1_rank_after %}
-                    {% else %}
-                        {% set rank_before = match.p2_rank_before %}
-                        {% set rank_after = match.p2_rank_after %}
-                    {% endif %}
-                    {% set delta = rank_before - rank_after %}
-                    {% if delta > 0 %}
-                        <span class="delta-pill positive">↑ {{ delta }}</span>
-                    {% elif delta < 0 %}
-                        <span class="delta-pill negative">↓ {{ delta|abs }}</span>
-                    {% else %}
-                        <span class="delta-pill neutral">— No change</span>
-                    {% endif %}
-                </td>
-                <td class="text-muted">{{ match.played_at[:10] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="matches-scroll">
+        <table class="recent-table">
+            <thead>
+                <tr>
+                    <th>Opponent</th>
+                    <th>Result</th>
+                    <th class="col-150">Rank Change</th>
+                    <th class="col-150">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for match in matches %}
+                <tr>
+                    <td>
+                        {% set opponent_name = match.opponent_name if match.opponent_name else 'Unknown Player' %}
+                        {% set opponent_parts = opponent_name.split() %}
+                        {% set opponent_first = opponent_parts[0] if opponent_parts else 'U' %}
+                        {% set opponent_last = opponent_parts[1] if opponent_parts|length > 1 else '' %}
+                        {% if match.opponent_id %}
+                            <a href="/profile/{{ match.opponent_id }}" class="player-link">
+                                <div class="avatar-circle avatar-xs">
+                                    {{ get_initials(opponent_first, opponent_last) }}
+                                </div>
+                                {{ opponent_name }}
+                            </a>
+                        {% else %}
+                            <span class="player-link">
+                                <div class="avatar-circle avatar-xs">
+                                    {{ get_initials(opponent_first, opponent_last) }}
+                                </div>
+                                {{ opponent_name }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if match.winner_id == user.id %}
+                            <span class="badge success">Won</span>
+                        {% elif match.winner_id is none %}
+                            <span class="badge primary">Draw</span>
+                        {% else %}
+                            <span class="badge error">Lost</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if match.player_one_id == user.id %}
+                            {% set rank_before = match.p1_rank_before %}
+                            {% set rank_after = match.p1_rank_after %}
+                        {% else %}
+                            {% set rank_before = match.p2_rank_before %}
+                            {% set rank_after = match.p2_rank_after %}
+                        {% endif %}
+                        {% if rank_before is not none and rank_after is not none %}
+                        {% set delta = rank_before - rank_after %}
+                        {% if delta > 0 %}
+                            <span class="delta-pill positive">+{{ delta }}</span>
+                        {% elif delta < 0 %}
+                            <span class="delta-pill negative">-{{ delta|abs }}</span>
+                        {% else %}
+                            <span class="delta-pill neutral">No change</span>
+                        {% endif %}
+                        {% else %}
+                            <span class="delta-pill neutral">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ match.played_at[:10] if match.played_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% else %}
-<div class="card">
-    <p class="text-center text-muted">No matches played yet</p>
+<div class="card matches-card">
+    <p class="empty-state-friendly">No matches recorded yet. Once matches are played, they will appear here.</p>
 </div>
 {% endif %}
 {% endblock %}

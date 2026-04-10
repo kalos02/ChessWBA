@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Local environments
+venv/
+.venv/
+
+# Logs and debug artifacts
+server-err.log
+server-out.log
+*.log
+temp*.py
+debug*.py
+
+# Runtime/session files
+session_data/
+
+# Editor/local settings
+.vscode/
+
+# Optional JS artifacts
+node_modules/
