@@ -4,6 +4,22 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 12px;
+    padding-right: 0;
+}
+
+.members-toolbar .table-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.members-toolbar .table-search input {
+    width: 100%;
+    height: 36px;
+    padding: 0.52rem 0.72rem;
+    font-size: 0.86rem;
 }
 
 .members-modal-backdrop {
@@ -146,15 +162,29 @@
 
 .row-actions {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 5px;
+    flex-wrap: nowrap;
     align-items: center;
+    width: 100%;
 }
 
 .row-actions .btn {
-    min-height: 32px;
-    padding: 0.34rem 0.62rem;
-    font-size: 0.78rem;
+    min-height: 28px;
+    min-width: 52px;
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 0.26rem 0.44rem;
+    font-size: 0.73rem;
+}
+
+.row-actions .btn-danger {
+    background: var(--surface-soft);
+    color: var(--text-primary);
+    border-color: var(--divider-strong);
+}
+
+.row-actions .btn-danger:hover {
+    background: var(--surface-elevated);
 }
 
 .row-user {
@@ -190,7 +220,7 @@
 }
 
 .table-container tbody tr:hover {
-    background: rgba(34, 211, 238, 0.06);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .col-80 {
@@ -206,7 +236,7 @@
 }
 
 .col-150 {
-    width: 150px;
+    width: 210px;
 }
 
 @media (max-width: 720px) {
@@ -217,6 +247,10 @@
 
     .members-toolbar .table-search {
         width: 100%;
+    }
+
+    .members-toolbar .table-search input {
+        height: 38px;
     }
 
     .members-form-grid {

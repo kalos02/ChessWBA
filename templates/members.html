@@ -53,7 +53,11 @@
                 <td>
                     <div class="row-user">
                         <div class="avatar-circle">
-                            {{ get_initials(user.first_name, user.last_name) }}
+                            {% if get_avatar_url(user.id) %}
+                                <img src="{{ get_avatar_url(user.id) }}" alt="{{ user.first_name }} {{ user.last_name }} avatar">
+                            {% else %}
+                                {{ get_initials(user.first_name, user.last_name) }}
+                            {% endif %}
                         </div>
                         <div>
                             <strong>{{ user.first_name }} {{ user.last_name }}</strong>
@@ -79,17 +83,17 @@
                 <td>
                     <div class="row-actions">
                         <a href="/profile/{{ user.id }}" class="btn btn-secondary btn-sm btn-compact">View</a>
-                                <button type="button" class="btn btn-secondary btn-sm btn-compact edit-player-btn">Edit</button>
+                        
+                        <button type="button" class="btn btn-secondary btn-sm btn-compact edit-player-btn">Edit</button>
+
+
+
+
                                 {# HTML -> JS -> Flask trace:
                                     JS reads data-player-id on click, writes it to hidden input name="id",
                                     then POST /deletePlayer is handled by delete_player() in app.py. #}
-                        <button
-                            type="button"
-                            class="btn btn-sm btn-compact btn-danger delete-player-btn"
-                            data-player-id="{{ user.id }}"
-                        >
-                            Delete
-                        </button>
+
+                        <button type="button" class="btn btn-sm btn-compact btn-danger delete-player-btn" data-player-id="{{ user.id }}">Delete</button>       
                     </div>
                 </td>
             </tr>
@@ -102,13 +106,12 @@
     <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="player-modal-title">
         <div class="members-modal-header">
             <h3 id="player-modal-title" class="members-modal-title">Add Player</h3>
-            <button type="button" id="player-modal-close" class="members-modal-close" aria-label="Close">X</button>
         </div>
 
         {# Shared add/edit form route (set by JS):
            Add mode -> POST /addPlayer (app.py add_player)
            Edit mode -> POST /editPlayer (app.py edit_player) #}
-        <form id="player-modal-form" class="members-modal-form" method="POST" action="/addPlayer">
+          <form id="player-modal-form" class="members-modal-form" method="POST" action="/addPlayer" enctype="multipart/form-data">
             {# playerId trace:
                JS sets this hidden id for Edit mode.
                Backend uses id as the unique identifier (names can repeat). #}
@@ -138,6 +141,11 @@
                 <div class="members-field full">
                     <label for="date-of-birth">Date of Birth</label>
                     <input id="date-of-birth" name="date_of_birth" type="date">
+                </div>
+                <div class="members-field full">
+                    <label for="avatar">Profile Photo</label>
+                    <span class="label-hint">Select an image when editing a player profile.</span>
+                    <input id="avatar" name="avatar" type="file" accept=".jpg,.jpeg,.png,.gif">
                 </div>
             </div>
 

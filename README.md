@@ -58,8 +58,15 @@ Overall, this project demonstrates a complete Flask workflow: database-driven pa
 
 Current runtime expectation:
 
-- Python 3.x (recommended: 3.14.x in this workspace)
+- Python 3.14.x (run directly with `python3.14`)
 - Dependencies are pinned in `requirements.txt`
+
+Install dependencies (no venv required):
+
+```powershell
+cd E:\Skaak\ChessWBA
+python3.14 -m pip install -r requirements.txt
+```
 
 Environment configuration:
 
@@ -71,16 +78,14 @@ PowerShell run example:
 
 ```powershell
 cd E:\Skaak\ChessWBA
-.\venv\Scripts\Activate.ps1
 $env:CHESS_DB_PATH = "E:\Skaak\ChessAdmin.sqlite3"
 $env:CHESS_AUTH_PHASE_ENABLED = "false"
-python app.py
+python3.14 app.py
 ```
 
 Run automated Phase 1 tests:
 
 ```powershell
 cd E:\Skaak\ChessWBA
-.\venv\Scripts\Activate.ps1
-python -m unittest discover -s tests -p "test_*.py"
+python3.14 -m unittest discover -s tests -p "test_*.py"
 ```

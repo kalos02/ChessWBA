@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # This project was developed with assistance from AI tools (ChatGPT and GitHub Copilot) for guidance and optimization. All logic and understanding were implemented and reviewed by the author.
 # Recommended: Python 3.x and install requirements.txt
-# Always activate the venv before running: .\venv\Scripts\activate
+# Run with Python 3.14 directly if dependencies are installed globally: python3.14 app.py
 """
 ChessWBA Flask app (backend)
 
@@ -22,10 +22,12 @@ import re
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, session, jsonify, flash, url_for
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import (
+    allowed_file,
     login_required,
     get_initials,
 )
@@ -68,7 +70,15 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("CHESS_SECRET_KEY", "chess-club-secret-key-2024")
 app.config["SESSION_PERMANENT"] = False
 app.config["UPLOAD_FOLDER"] = "static/uploads"
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+
+max_upload_mb_raw = os.getenv("CHESS_MAX_UPLOAD_MB", "5").strip()
+try:
+    max_upload_mb = max(1, int(max_upload_mb_raw))
+except ValueError:
+    max_upload_mb = 5
+
+app.config["MAX_UPLOAD_MB"] = max_upload_mb
+app.config["MAX_CONTENT_LENGTH"] = max_upload_mb * 1024 * 1024
 app.config["AUTH_PHASE_ENABLED"] = os.getenv("CHESS_AUTH_PHASE_ENABLED", "false").strip().lower() in {
     "1",
     "true",
@@ -145,6 +155,45 @@ validate_required_schema()
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
+def get_avatar_filename(player_id):
+    """Return stored avatar filename for a player id, else None."""
+    for extension in ("png", "jpg", "jpeg", "gif"):
+        filename = "player_{}.{}".format(player_id, extension)
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        if os.path.exists(file_path):
+            return filename
+    return None
+
+
+def get_avatar_url(player_id):
+    """Return static URL for a player's avatar image, else None."""
+    filename = get_avatar_filename(player_id)
+    if not filename:
+        return None
+    return url_for("static", filename="uploads/{}".format(filename))
+
+
+def save_avatar_upload(file_storage, player_id):
+    """Persist uploaded avatar for a player id and remove older avatar variants."""
+    if not file_storage or not file_storage.filename:
+        return None
+
+    if not allowed_file(file_storage.filename):
+        raise ValueError("Please upload a valid image file (jpg, jpeg, png, gif).")
+
+    original_name = file_storage.filename.lower()
+    extension = original_name.rsplit(".", 1)[1]
+
+    for old_extension in ("png", "jpg", "jpeg", "gif"):
+        old_file_path = os.path.join(app.config["UPLOAD_FOLDER"], "player_{}.{}".format(player_id, old_extension))
+        if os.path.exists(old_file_path):
+            os.remove(old_file_path)
+
+    filename = "player_{}.{}".format(player_id, extension)
+    file_storage.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+    return filename
+
+
 # -----------------------------------------------------------------------------
 # Shared Template Context + Utility Helpers
 # -----------------------------------------------------------------------------
@@ -177,6 +226,7 @@ def inject_helpers():
 
     return {
         "get_initials": get_initials,
+        "get_avatar_url": get_avatar_url,
         "current_user": current_user,
     }
 
@@ -780,6 +830,7 @@ def edit_player():
     ranking_raw = player_form_data["ranking_raw"]
     points_raw = player_form_data["points_raw"]
     date_of_birth = player_form_data["date_of_birth"]
+    avatar_file = request.files.get("avatar")
 
     if not player_id_raw:
         flash("Player id is required for update.", "error")
@@ -830,8 +881,14 @@ def edit_player():
             player_id,
         )
 
+        if avatar_file and avatar_file.filename:
+            save_avatar_upload(avatar_file, player_id)
+
         normalize_rankings_with_ties()
         flash("Player updated successfully.", "success")
+    except ValueError as exc:
+        print("Edit player avatar upload error: {}".format(exc))
+        flash(str(exc), "error")
     except Exception as exc:
         print("Edit player error: {}".format(exc))
         flash("Could not update player.", "error")
@@ -1025,6 +1082,7 @@ def edit_profile():
     user = user_rows[0]
     dob_value = normalize_datetime(user.get("date_of_birth"))
     user["date_of_birth"] = dob_value.strftime("%Y-%m-%d") if dob_value else user.get("date_of_birth")
+    user["avatar_url"] = get_avatar_url(user_id)
 
     if request.method == "GET":
         return render_template("edit_profile.html", user=user)
@@ -1033,6 +1091,7 @@ def edit_profile():
     last_name = request.form.get("last_name", "").strip()
     email = request.form.get("email", "").strip()
     date_of_birth = request.form.get("date_of_birth", "").strip()
+    avatar_file = request.files.get("avatar")
 
     if not first_name:
         flash("First name is required.", "error")
@@ -1068,11 +1127,28 @@ def edit_profile():
             user_id,
         )
 
+        if avatar_file and avatar_file.filename:
+            save_avatar_upload(avatar_file, user_id)
+
         flash("Profile updated successfully.", "success")
         return redirect("/profile/{}".format(user_id))
+    except ValueError as exc:
+        print("Avatar upload error: {}".format(exc))
+        flash(str(exc), "error")
+        user["first_name"] = first_name
+        user["last_name"] = last_name
+        user["email"] = email
+        user["date_of_birth"] = date_of_birth
+        user["avatar_url"] = get_avatar_url(user_id)
+        return render_template("edit_profile.html", user=user)
     except Exception as exc:
         print("Edit profile error: {}".format(exc))
         flash("An error occurred while updating profile.", "error")
+        user["first_name"] = first_name
+        user["last_name"] = last_name
+        user["email"] = email
+        user["date_of_birth"] = date_of_birth
+        user["avatar_url"] = get_avatar_url(user_id)
         return render_template("edit_profile.html", user=user)
 
 
@@ -1301,6 +1377,14 @@ def not_found(error):
 def server_error(error):
     """500 error handler."""
     return render_template("500.html"), 500
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def payload_too_large(error):
+    """Friendly feedback for oversized image uploads."""
+    max_upload_mb = app.config.get("MAX_UPLOAD_MB", 5)
+    flash("Image is too large. Maximum allowed size is {} MB.".format(max_upload_mb), "error")
+    return redirect(request.referrer or "/members")
 
 
 # -----------------------------------------------------------------------------

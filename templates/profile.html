@@ -155,7 +155,13 @@
 
 <div class="profile-shell">
     <article class="profile-card text-center">
-        <div class="avatar-circle profile-avatar-lg">{{ get_initials(user.first_name, user.last_name) }}</div>
+        <div class="avatar-circle profile-avatar-lg">
+            {% if get_avatar_url(user.id) %}
+                <img src="{{ get_avatar_url(user.id) }}" alt="{{ user.first_name }} {{ user.last_name }} avatar">
+            {% else %}
+                {{ get_initials(user.first_name, user.last_name) }}
+            {% endif %}
+        </div>
         <h1 class="profile-name">{{ user.first_name }} {{ user.last_name }}</h1>
         <p class="profile-subtle">Club Player</p>
 
@@ -180,6 +186,9 @@
 
         <div class="profile-actions">
             <a href="/" class="btn btn-primary">Back to Leaderboard</a>
+            {% if is_own_profile %}
+            <a href="/edit_profile" class="btn btn-secondary">Edit Profile</a>
+            {% endif %}
             <a href="/members?editId={{ user.id }}" class="btn btn-secondary">Edit Player</a>
         </div>
     </article>
@@ -234,7 +243,11 @@
                         {% if match.opponent_id %}
                             <a href="/profile/{{ match.opponent_id }}" class="player-link">
                                 <div class="avatar-circle avatar-xs">
-                                    {{ get_initials(opponent_first, opponent_last) }}
+                                    {% if get_avatar_url(match.opponent_id) %}
+                                        <img src="{{ get_avatar_url(match.opponent_id) }}" alt="{{ opponent_name }} avatar">
+                                    {% else %}
+                                        {{ get_initials(opponent_first, opponent_last) }}
+                                    {% endif %}
                                 </div>
                                 {{ opponent_name }}
                             </a>

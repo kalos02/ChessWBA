@@ -1,6 +1,6 @@
 /*
-    ChessWBA dark neo-minimal theme
-    - calm, premium, high-contrast dark UI
+    ChessWBA dark mono-minimal theme
+    - clean, modern black/gray contrast
     - shared across all templates
 */
 
@@ -11,20 +11,20 @@
 }
 
 :root {
-    --bg: #0a0a0a;
-    --surface: #1f1f1f;
-    --surface-soft: #171717;
-    --surface-elevated: #232323;
-    --text-primary: #e5e5e5;
-    --text-secondary: #a1a1aa;
+    --bg: #0b0b0b;
+    --surface: #161616;
+    --surface-soft: #1d1d1d;
+    --surface-elevated: #252525;
+    --text-primary: #f3f3f0;
+    --text-secondary: #b0b0ab;
     --text-muted: var(--text-secondary);
-    --accent: #14b8a6;
-    --accent-alt: #22d3ee;
+    --accent: #d4d4cf;
+    --accent-alt: #ffffff;
     --success: #4ade80;
     --error: #f87171;
     --divider: rgba(255, 255, 255, 0.08);
     --divider-strong: rgba(255, 255, 255, 0.14);
-    --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.25);
+    --shadow-soft: 0 12px 28px rgba(0, 0, 0, 0.3);
     --radius: 8px;
 
     /* Compatibility aliases for existing templates */
@@ -46,7 +46,7 @@ body {
 
 body {
     font-family: "Manrope", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
-    background: radial-gradient(circle at 20% -10%, rgba(20, 184, 166, 0.08), transparent 35%), var(--bg);
+    background: radial-gradient(circle at 20% -10%, rgba(255, 255, 255, 0.04), transparent 38%), var(--bg);
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
@@ -74,9 +74,9 @@ body {
     justify-content: center;
     font-weight: 700;
     font-size: 0.8rem;
-    color: var(--text-primary);
-    background: linear-gradient(145deg, rgba(20, 184, 166, 0.22), rgba(34, 211, 238, 0.14));
-    border: 1px solid rgba(34, 211, 238, 0.25);
+    color: #121212;
+    background: linear-gradient(145deg, #f3f3f0, #ccccca);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     overflow: hidden;
     flex-shrink: 0;
 }
@@ -179,7 +179,7 @@ main {
 
 .stat-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(34, 211, 238, 0.3);
+    border-color: rgba(255, 255, 255, 0.16);
     background: var(--surface-elevated);
 }
 
@@ -246,7 +246,7 @@ td {
 }
 
 tbody tr:hover {
-    background: rgba(34, 211, 238, 0.04);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 tbody tr:last-child td {
@@ -292,15 +292,15 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-    color: #71717a;
+    color: #8a8a84;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
     outline: none;
-    border-color: rgba(34, 211, 238, 0.6);
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+    border-color: rgba(255, 255, 255, 0.26);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
     background: var(--surface);
 }
 
@@ -332,15 +332,15 @@ textarea:focus {
 }
 
 .btn-primary {
-    background: rgba(20, 184, 166, 0.14);
-    color: var(--accent-alt);
-    border-color: rgba(34, 211, 238, 0.35);
+    background: #f1f1ed;
+    color: #101010;
+    border-color: #f1f1ed;
 }
 
 .btn-primary:hover {
     transform: translateY(-1px);
-    background: rgba(20, 184, 166, 0.2);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
 .btn-secondary {
@@ -421,9 +421,9 @@ textarea:focus {
 
 .flash.warning,
 .flash.info {
-    border-color: rgba(34, 211, 238, 0.36);
-    background: rgba(34, 211, 238, 0.08);
-    color: #a5f3fc;
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: #e5e5df;
 }
 
 /* Utility */
@@ -433,7 +433,7 @@ a {
 }
 
 a:hover {
-    color: #67e8f9;
+    color: #d6d6d2;
 }
 
 .hidden {
@@ -462,8 +462,8 @@ a:hover {
 }
 
 .badge.primary {
-    color: #a5f3fc;
-    background: rgba(34, 211, 238, 0.08);
+    color: #f1f1ed;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .badge.success {
@@ -512,9 +512,9 @@ a:hover {
 }
 
 .hint-box {
-    background: rgba(34, 211, 238, 0.08);
-    color: #bae6fd;
-    border: 1px solid rgba(34, 211, 238, 0.28);
+    background: rgba(255, 255, 255, 0.05);
+    color: #e6e6e0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius);
     padding: 0.8rem 0.9rem;
     margin-bottom: 0.95rem;
@@ -590,13 +590,13 @@ a:hover {
 .result-btn:hover {
     transform: translateY(-1px);
     background: var(--surface-elevated);
-    border-color: rgba(34, 211, 238, 0.34);
+    border-color: rgba(255, 255, 255, 0.16);
 }
 
 .result-btn.active {
-    background: rgba(20, 184, 166, 0.16);
-    color: var(--accent-alt);
-    border-color: rgba(34, 211, 238, 0.4);
+    background: #f1f1ed;
+    color: #101010;
+    border-color: #f1f1ed;
 }
 
 /* Responsive */

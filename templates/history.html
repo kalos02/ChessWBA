@@ -34,7 +34,11 @@
                 <td>
                     <a href="/profile/{{ match.player1_id }}" class="player-link">
                         <div class="avatar-circle avatar-xs">
-                            {{ get_initials(match.player1_name.split()[0], match.player1_name.split()[1] if match.player1_name.split()|length > 1 else '') }}
+                            {% if get_avatar_url(match.player1_id) %}
+                                <img src="{{ get_avatar_url(match.player1_id) }}" alt="{{ match.player1_name }} avatar">
+                            {% else %}
+                                {{ get_initials(match.player1_name.split()[0], match.player1_name.split()[1] if match.player1_name.split()|length > 1 else '') }}
+                            {% endif %}
                         </div>
                         <span>{{ match.player1_name }}</span>
                     </a>
@@ -42,7 +46,11 @@
                 <td>
                     <a href="/profile/{{ match.player2_id }}" class="player-link">
                         <div class="avatar-circle avatar-xs">
-                            {{ get_initials(match.player2_name.split()[0], match.player2_name.split()[1] if match.player2_name.split()|length > 1 else '') }}
+                            {% if get_avatar_url(match.player2_id) %}
+                                <img src="{{ get_avatar_url(match.player2_id) }}" alt="{{ match.player2_name }} avatar">
+                            {% else %}
+                                {{ get_initials(match.player2_name.split()[0], match.player2_name.split()[1] if match.player2_name.split()|length > 1 else '') }}
+                            {% endif %}
                         </div>
                         <span>{{ match.player2_name }}</span>
                     </a>
@@ -91,7 +99,7 @@
 </div>
 {% else %}
 <div class="card">
-    <p class="text-center text-muted empty-state">No matches have been played yet. <a href="/match">Record the first match</a>!</p>
+    <p class="text-center text-muted empty-state">No matches have been played yet. <a href="/match">Add the first match</a>!</p>
 </div>
 {% endif %}
 {% endblock %}

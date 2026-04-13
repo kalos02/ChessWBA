@@ -15,6 +15,22 @@
 <div class="container profile-edit-container">
     <div class="card">
         <form method="post" enctype="multipart/form-data">
+            <div class="form-group text-center mt-3">
+                <div class="avatar-circle avatar-circle lg" style="margin: 0 auto 12px;">
+                    {% if user.avatar_url %}
+                        <img src="{{ user.avatar_url }}" alt="{{ user.first_name }} {{ user.last_name }} avatar">
+                    {% else %}
+                        {{ get_initials(user.first_name, user.last_name) }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="avatar">Profile Picture <span class="text-muted">(Optional)</span></label>
+                <span class="label-hint">Upload a jpg, jpeg, png, or gif image</span>
+                <input type="file" id="avatar" name="avatar" accept=".jpg,.jpeg,.png,.gif">
+            </div>
+
                         <div class="form-group mt-3">
                 <label for="first_name">First Name</label>
                 <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" placeholder="John" required>

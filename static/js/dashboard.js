@@ -11,7 +11,6 @@
 
 document.addEventListener('DOMContentLoaded', function () {
     const ROW_VISIBILITY_ANIMATION_MS = 300;
-    const SEARCH_DEBOUNCE_MS = 250;
 
     // Dashboard script only runs on the leaderboard page where this table exists.
     const rankingTable = document.getElementById('by-rank-table');
@@ -35,6 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Section 1: DOM references and initial page data.
     const dashboardConfigElement = document.getElementById('dashboard-config');
+    const analyticsPanel = document.getElementById('analytics-panel');
     const trendDefaultLimitFromConfig = dashboardConfigElement ? Number(dashboardConfigElement.dataset.trendDefaultLimit || 5) : 5;
     const decisiveMatches = dashboardConfigElement ? Number(dashboardConfigElement.dataset.decisiveMatches || 0) : 0;
     const outcomeDraws = dashboardConfigElement ? Number(dashboardConfigElement.dataset.draws || 0) : 0;
@@ -46,12 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const pointsTable = document.querySelector('#rankings .table-card:nth-of-type(2) table');
     const pointsTableBody = pointsTable ? pointsTable.querySelector('tbody') : null;
     const pointsEmptyRow = pointsTableBody ? pointsTableBody.querySelector('[data-empty-row="points"]') : null;
-    const searchInput = document.getElementById('ranking-search');
-    const clearSearchButton = document.getElementById('ranking-search-clear');
-    const topFilterButtons = document.querySelectorAll('.top-filter-btn');
     let currentSort = { key: 'rank', type: 'number', order: 'asc' };
-    let currentTopLimit = 'all';
-    let searchDebounceTimerId = null;
 
     // Section 2: Event listeners.
     sortControlButtons.forEach(function (sortButton) {
@@ -65,31 +60,6 @@ document.addEventListener('DOMContentLoaded', function () {
             applySort(key, type, nextOrder);
         });
     });
-
-    topFilterButtons.forEach(function (topFilterButton) {
-        topFilterButton.addEventListener('click', function () {
-            currentTopLimit = topFilterButton.dataset.top || 'all';
-            setActiveTopFilterButton(topFilterButton);
-            applySearchAndTopFilter();
-        });
-    });
-
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            if (searchDebounceTimerId) {
-                clearTimeout(searchDebounceTimerId);
-            }
-            searchDebounceTimerId = setTimeout(applySearchAndTopFilter, SEARCH_DEBOUNCE_MS);
-        });
-    }
-
-    if (clearSearchButton && searchInput) {
-        clearSearchButton.addEventListener('click', function () {
-            searchInput.value = '';
-            applySearchAndTopFilter();
-            searchInput.focus();
-        });
-    }
 
     // Section 3: Helper functions.
     function getDataRows(tableBody) {
@@ -124,16 +94,8 @@ document.addEventListener('DOMContentLoaded', function () {
         emptyRowElement.style.display = hasVisibleRow ? 'none' : '';
     }
 
-    function setActiveTopFilterButton(selectedButton) {
-        topFilterButtons.forEach(function (button) {
-            button.classList.remove('active');
-        });
-        selectedButton.classList.add('active');
-    }
-
-    function applySearchAndTopFilter() {
-        const searchTerm = (searchInput && searchInput.value ? searchInput.value : '').toLowerCase().trim();
-        const topLimit = currentTopLimit === 'all' ? Number.POSITIVE_INFINITY : Number(currentTopLimit);
+    function applyTopTenFilter() {
+        const topLimit = 10;
 
         [
             { tableBody: rankingTableBody, emptyRow: rankingEmptyRow },
@@ -146,14 +108,10 @@ document.addEventListener('DOMContentLoaded', function () {
             let matchingRowsSeen = 0;
 
             rows.forEach(function (tableRow) {
-                const rowNameText = (tableRow.dataset.name || tableRow.textContent || '').toLowerCase();
-                const matchesSearch = !searchTerm || rowNameText.includes(searchTerm);
                 const isWithinTopFilter = matchingRowsSeen < topLimit;
-                const shouldShowRow = matchesSearch && isWithinTopFilter;
+                const shouldShowRow = isWithinTopFilter;
 
-                if (matchesSearch) {
-                    matchingRowsSeen += 1;
-                }
+                matchingRowsSeen += 1;
                 applyRowVisibility(tableRow, shouldShowRow);
             });
 
@@ -211,11 +169,11 @@ document.addEventListener('DOMContentLoaded', function () {
         sortRankTable(key, type, order);
         currentSort = { key: key, type: type, order: order };
         updateSortIndicators(key, order);
-        applySearchAndTopFilter();
+        applyTopTenFilter();
     }
 
     applySort('rank', 'number', 'asc');
-    applySearchAndTopFilter();
+    applyTopTenFilter();
 
     // Chart data preparation: read server-provided JSON payloads from the template.
 
@@ -526,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalOutcomeMatches = decisiveMatches + outcomeDraws;
 
     // Chart initialization: overall decisive vs draw outcomes.
-    new Chart(document.getElementById('winRatioChart'), {
+    const winRatioChart = new Chart(document.getElementById('winRatioChart'), {
         type: 'bar',
         data: {
             labels: winRatioLabels,
@@ -578,4 +536,22 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    function refreshAnalyticsCharts() {
+        topPlayersChart.resize();
+        rankingTrendChart.resize();
+        winRatioChart.resize();
+
+        topPlayersChart.update('none');
+        rankingTrendChart.update('none');
+        winRatioChart.update('none');
+    }
+
+    if (analyticsPanel) {
+        analyticsPanel.addEventListener('toggle', function () {
+            if (analyticsPanel.open) {
+                setTimeout(refreshAnalyticsCharts, 120);
+            }
+        });
+    }
 });

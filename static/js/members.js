@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const playerRankingInput = document.getElementById('ranking');
     const playerPointsInput = document.getElementById('points');
     const playerDateOfBirthInput = document.getElementById('date-of-birth');
+    const playerAvatarInput = document.getElementById('avatar');
 
     const deleteModalBackdrop = document.getElementById('delete-modal-backdrop');
     const deleteModalCloseButton = document.getElementById('delete-modal-close');
@@ -115,6 +116,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setInputValue(playerRankingInput, values.ranking);
         setInputValue(playerPointsInput, values.points);
         setInputValue(playerDateOfBirthInput, values.dateOfBirth);
+
+        if (playerAvatarInput) {
+            playerAvatarInput.value = '';
+        }
     }
 
     function getPlayerValuesFromRow(playerRow) {
@@ -174,8 +179,18 @@ document.addEventListener('DOMContentLoaded', function () {
         hideModal(deleteModalBackdrop);
     }
 
-    function bindModalCloseHandlers(modalBackdropElement, closeButtonElement, cancelButtonElement, closeHandler) {
-        if (closeButtonElement) {
+    function bindModalCloseHandlers(
+        modalBackdropElement,
+        closeButtonElement,
+        cancelButtonElement,
+        closeHandler,
+        options
+    ) {
+        const config = options || {};
+        const enableCloseButton = config.enableCloseButton !== false;
+        const enableBackdropClose = config.enableBackdropClose !== false;
+
+        if (closeButtonElement && enableCloseButton) {
             closeButtonElement.addEventListener('click', closeHandler);
         }
 
@@ -183,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
             cancelButtonElement.addEventListener('click', closeHandler);
         }
 
-        if (modalBackdropElement) {
+        if (modalBackdropElement && enableBackdropClose) {
             modalBackdropElement.addEventListener('click', function (event) {
                 if (event.target === modalBackdropElement) {
                     closeHandler();
@@ -226,16 +241,16 @@ document.addEventListener('DOMContentLoaded', function () {
         playerFirstNameInput.focus();
     }
 
-    function openDeletePlayerModal(playerId) {
-        // Delete flow:
-        // Delete button data-player-id -> JS sets hidden input #delete-player-id ->
-        // form POST /deletePlayer -> delete_player() in app.py.
-        // playerId is the unique identifier. We do not use names because names can repeat.
-        debugLog('[Members][Delete] Opening Delete Modal for playerId: ' + playerId);
-        debugLog('[Members][Delete] Setting hidden delete id field to: ' + playerId);
+        function openDeletePlayerModal(playerId) {
+                // Delete flow:
+                // Delete button data-player-id -> JS sets hidden input #delete-player-id ->
+                // form POST /deletePlayer -> delete_player() in app.py.
+                // playerId is the unique identifier. We do not use names because names can repeat.
+                debugLog('[Members][Delete] Opening Delete Modal for playerId: ' + playerId);
+                debugLog('[Members][Delete] Setting hidden delete id field to: ' + playerId);
 
-        setInputValue(deletePlayerIdInput, playerId);
-        showModal(deleteModalBackdrop);
+                setInputValue(deletePlayerIdInput, playerId);
+                showModal(deleteModalBackdrop);
     }
 
     function openEditModalFromUrlIfRequested() {
@@ -311,7 +326,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    bindModalCloseHandlers(playerModalBackdrop, playerModalCloseButton, playerModalCancelButton, closePlayerModal);
+    bindModalCloseHandlers(playerModalBackdrop, playerModalCloseButton, playerModalCancelButton, closePlayerModal, {
+        enableCloseButton: false,
+        enableBackdropClose: false
+    });
     bindModalCloseHandlers(deleteModalBackdrop, deleteModalCloseButton, deleteModalCancelButton, closeDeletePlayerModal);
 
     if (deleteModalForm) {
@@ -336,10 +354,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && isModalVisible(playerModalBackdrop)) {
-            closePlayerModal();
-        }
-
         if (event.key === 'Escape' && isModalVisible(deleteModalBackdrop)) {
             closeDeletePlayerModal();
         }
