@@ -547,11 +547,7 @@ document.addEventListener('DOMContentLoaded', function () {
         winRatioChart.update('none');
     }
 
-    if (analyticsPanel) {
-        analyticsPanel.addEventListener('toggle', function () {
-            if (analyticsPanel.open) {
-                setTimeout(refreshAnalyticsCharts, 120);
-            }
-        });
-    }
+    // Charts are always visible now (no details/summary toggle).
+    // Resize once after initial render to ensure correct canvas sizing.
+    setTimeout(refreshAnalyticsCharts, 120);
 });

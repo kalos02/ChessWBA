@@ -127,19 +127,26 @@ class Phase1HardeningTests(unittest.TestCase):
         )
         self.assertEqual(int(before_rows[0]["count"]), 1)
 
-        delete_response = self.client.post(
-            "/deletePlayer",
+        toggle_response = self.client.post(
+            "/togglePlayerStatus",
             data={"id": str(player_id)},
             follow_redirects=False,
         )
-        self.assertEqual(delete_response.status_code, 302)
-        self.assertEqual(delete_response.headers.get("Location"), "/members")
+        self.assertEqual(toggle_response.status_code, 302)
+        self.assertEqual(toggle_response.headers.get("Location"), "/members")
 
         after_rows = app_module.db.execute(
-            "SELECT COUNT(*) AS count FROM ChessAdminApp_player WHERE id = ?",
+            "SELECT id, is_active FROM ChessAdminApp_player WHERE id = ?",
             player_id,
         )
-        self.assertEqual(int(after_rows[0]["count"]), 1)
+        self.assertTrue(after_rows)
+        self.assertEqual(int(after_rows[0]["is_active"]), 0)
+
+        # Restore active status so subsequent tests see a consistent active player set.
+        app_module.db.execute(
+            "UPDATE ChessAdminApp_player SET is_active = 1 WHERE id = ?",
+            player_id,
+        )
 
     def test_ranking_integrity_after_mutation(self):
         first_name = self._unique_name("TRank")
@@ -164,6 +171,7 @@ class Phase1HardeningTests(unittest.TestCase):
             FROM (
                 SELECT ranking
                 FROM ChessAdminApp_player
+                WHERE COALESCE(is_active, 1) = 1
                 GROUP BY ranking
                 HAVING COUNT(DISTINCT points) > 1
             ) t
@@ -172,7 +180,7 @@ class Phase1HardeningTests(unittest.TestCase):
         self.assertEqual(int(bad_ties_rows[0]["count"]), 0)
 
         distinct_rank_rows = app_module.db.execute(
-            "SELECT DISTINCT ranking FROM ChessAdminApp_player ORDER BY ranking ASC"
+            "SELECT DISTINCT ranking FROM ChessAdminApp_player WHERE COALESCE(is_active, 1) = 1 ORDER BY ranking ASC"
         )
         distinct_ranks = [int(row["ranking"]) for row in distinct_rank_rows]
         self.assertTrue(distinct_ranks)
@@ -205,6 +213,283 @@ class Phase1HardeningTests(unittest.TestCase):
 
         index_response = self.client.get("/")
         self.assertEqual(index_response.status_code, 200)
+
+    def test_history_page_exposes_match_actions(self):
+        history_response = self.client.get("/history")
+        self.assertEqual(history_response.status_code, 200)
+
+        html = history_response.get_data(as_text=True)
+        self.assertIn(">Edit<", html)
+        self.assertIn("js-edit-match", html)
+        self.assertIn("id=\"edit-player1\"", html)
+        self.assertIn("delete-match-backdrop", html)
+
+    def test_edit_match_endpoint_updates_match_details(self):
+        player_rows = app_module.db.execute(
+            "SELECT id FROM ChessAdminApp_player WHERE COALESCE(is_active, 1) = 1 ORDER BY ranking ASC LIMIT 3"
+        )
+        self.assertGreaterEqual(len(player_rows), 3)
+
+        player_one_id = int(player_rows[0]["id"])
+        player_two_id = int(player_rows[1]["id"])
+        replacement_player_id = int(player_rows[2]["id"])
+
+        create_response = self.client.post(
+            "/match",
+            data={
+                "player1_id": str(player_one_id),
+                "player2_id": str(player_two_id),
+                "venue": "Edit Test Venue",
+                "scheduled_date": "2026-04-14",
+                "status": "COMPLETE",
+                "result": "draw",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.headers.get("Location"), "/history")
+
+        inserted_rows = app_module.db.execute(
+            """
+            SELECT id
+            FROM ChessAdminApp_match
+            WHERE venue = ? AND player_one_id = ? AND player_two_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            "Edit Test Venue",
+            player_one_id,
+            player_two_id,
+        )
+        self.assertTrue(inserted_rows)
+        match_id = int(inserted_rows[0]["id"])
+
+        try:
+            edit_response = self.client.post(
+                "/editMatch",
+                data={
+                    "match_id": str(match_id),
+                    "player1_id": str(replacement_player_id),
+                    "player2_id": str(player_two_id),
+                    "venue": "Edited Venue",
+                    "scheduled_date": "2026-04-15",
+                    "status": "COMPLETED",
+                    "result": "p1",
+                },
+                follow_redirects=False,
+            )
+            self.assertEqual(edit_response.status_code, 302)
+            self.assertEqual(edit_response.headers.get("Location"), "/history")
+
+            edited_rows = app_module.db.execute(
+                """
+                SELECT player_one_id, player_two_id, venue, scheduled_date, status, match_result, winner_id
+                FROM ChessAdminApp_match
+                WHERE id = ?
+                """,
+                match_id,
+            )
+            self.assertTrue(edited_rows)
+            self.assertEqual(int(edited_rows[0]["player_one_id"]), replacement_player_id)
+            self.assertEqual(int(edited_rows[0]["player_two_id"]), player_two_id)
+            self.assertEqual(edited_rows[0]["venue"], "Edited Venue")
+            self.assertEqual(edited_rows[0]["scheduled_date"], "2026-04-15")
+            self.assertEqual(edited_rows[0]["status"], "COMPLETED")
+            self.assertEqual(edited_rows[0]["match_result"], "WIN")
+            self.assertEqual(int(edited_rows[0]["winner_id"]), replacement_player_id)
+        finally:
+            app_module.db.execute("DELETE FROM ChessAdminApp_match WHERE id = ?", match_id)
+
+    def test_edit_match_preserves_existing_values_when_optional_fields_are_blank(self):
+        player_rows = app_module.db.execute(
+            "SELECT id FROM ChessAdminApp_player WHERE COALESCE(is_active, 1) = 1 ORDER BY ranking ASC LIMIT 2"
+        )
+        self.assertGreaterEqual(len(player_rows), 2)
+
+        player_one_id = int(player_rows[0]["id"])
+        player_two_id = int(player_rows[1]["id"])
+
+        create_response = self.client.post(
+            "/match",
+            data={
+                "player1_id": str(player_one_id),
+                "player2_id": str(player_two_id),
+                "venue": "Preserve Test Venue",
+                "scheduled_date": "2026-04-14",
+                "status": "COMPLETE",
+                "result": "draw",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.headers.get("Location"), "/history")
+
+        inserted_rows = app_module.db.execute(
+            """
+            SELECT id
+            FROM ChessAdminApp_match
+            WHERE venue = ? AND player_one_id = ? AND player_two_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            "Preserve Test Venue",
+            player_one_id,
+            player_two_id,
+        )
+        self.assertTrue(inserted_rows)
+        match_id = int(inserted_rows[0]["id"])
+
+        try:
+            edit_response = self.client.post(
+                "/editMatch",
+                data={
+                    "match_id": str(match_id),
+                    "player1_id": str(player_one_id),
+                    "player2_id": str(player_two_id),
+                    "venue": "",
+                    "scheduled_date": "",
+                    "status": "COMPLETED",
+                    "result": "",
+                },
+                follow_redirects=False,
+            )
+            self.assertEqual(edit_response.status_code, 302)
+            self.assertEqual(edit_response.headers.get("Location"), "/history")
+
+            edited_rows = app_module.db.execute(
+                "SELECT venue, scheduled_date, status, match_result, winner_id FROM ChessAdminApp_match WHERE id = ?",
+                match_id,
+            )
+            self.assertTrue(edited_rows)
+            self.assertEqual(edited_rows[0]["venue"], "Preserve Test Venue")
+            self.assertEqual(edited_rows[0]["scheduled_date"], "2026-04-14")
+            self.assertEqual(edited_rows[0]["status"], "COMPLETED")
+            self.assertEqual(edited_rows[0]["match_result"], "DRAW")
+            self.assertIsNone(edited_rows[0]["winner_id"])
+        finally:
+            app_module.db.execute("DELETE FROM ChessAdminApp_match WHERE id = ?", match_id)
+
+    def test_edit_match_status_updates_correctly(self):
+        player_rows = app_module.db.execute(
+            "SELECT id FROM ChessAdminApp_player WHERE COALESCE(is_active, 1) = 1 ORDER BY ranking ASC LIMIT 2"
+        )
+        self.assertGreaterEqual(len(player_rows), 2)
+
+        player_one_id = int(player_rows[0]["id"])
+        player_two_id = int(player_rows[1]["id"])
+
+        create_response = self.client.post(
+            "/match",
+            data={
+                "player1_id": str(player_one_id),
+                "player2_id": str(player_two_id),
+                "venue": "Status Test Venue",
+                "scheduled_date": "2026-04-14",
+                "status": "COMPLETED",
+                "result": "p1",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.headers.get("Location"), "/history")
+
+        inserted_rows = app_module.db.execute(
+            """
+            SELECT id
+            FROM ChessAdminApp_match
+            WHERE venue = ? AND player_one_id = ? AND player_two_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            "Status Test Venue",
+            player_one_id,
+            player_two_id,
+        )
+        self.assertTrue(inserted_rows)
+        match_id = int(inserted_rows[0]["id"])
+
+        try:
+            edit_response = self.client.post(
+                "/editMatch",
+                data={
+                    "match_id": str(match_id),
+                    "player1_id": str(player_one_id),
+                    "player2_id": str(player_two_id),
+                    "venue": "Status Test Venue Updated",
+                    "scheduled_date": "2026-04-16",
+                    "status": "PENDING",
+                    "result": "",
+                },
+                follow_redirects=False,
+            )
+            self.assertEqual(edit_response.status_code, 302)
+            self.assertEqual(edit_response.headers.get("Location"), "/history")
+
+            edited_rows = app_module.db.execute(
+                "SELECT venue, scheduled_date, status, match_result, winner_id FROM ChessAdminApp_match WHERE id = ?",
+                match_id,
+            )
+            self.assertTrue(edited_rows)
+            self.assertEqual(edited_rows[0]["venue"], "Status Test Venue Updated")
+            self.assertEqual(edited_rows[0]["scheduled_date"], "2026-04-16")
+            self.assertEqual(edited_rows[0]["status"], "SCHEDULED")
+            self.assertIsNone(edited_rows[0]["match_result"])
+            self.assertIsNone(edited_rows[0]["winner_id"])
+        finally:
+            app_module.db.execute("DELETE FROM ChessAdminApp_match WHERE id = ?", match_id)
+
+    def test_delete_match_endpoint_removes_match(self):
+        player_rows = app_module.db.execute(
+            "SELECT id FROM ChessAdminApp_player WHERE COALESCE(is_active, 1) = 1 ORDER BY ranking ASC LIMIT 2"
+        )
+        self.assertGreaterEqual(len(player_rows), 2)
+
+        player_one_id = int(player_rows[0]["id"])
+        player_two_id = int(player_rows[1]["id"])
+
+        create_response = self.client.post(
+            "/match",
+            data={
+                "player1_id": str(player_one_id),
+                "player2_id": str(player_two_id),
+                "venue": "Delete Test Venue",
+                "scheduled_date": "2026-04-14",
+                "status": "COMPLETE",
+                "result": "draw",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.headers.get("Location"), "/history")
+
+        inserted_rows = app_module.db.execute(
+            """
+            SELECT id
+            FROM ChessAdminApp_match
+            WHERE venue = ? AND player_one_id = ? AND player_two_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            "Delete Test Venue",
+            player_one_id,
+            player_two_id,
+        )
+        self.assertTrue(inserted_rows)
+        match_id = int(inserted_rows[0]["id"])
+
+        delete_response = self.client.post(
+            "/deleteMatch",
+            data={"match_id": str(match_id)},
+            follow_redirects=False,
+        )
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertEqual(delete_response.headers.get("Location"), "/history")
+
+        remaining_rows = app_module.db.execute(
+            "SELECT COUNT(*) AS count FROM ChessAdminApp_match WHERE id = ?",
+            match_id,
+        )
+        self.assertEqual(int(remaining_rows[0]["count"]), 0)
 
     def test_profile_route_handles_missing_opponent_data(self):
         player_rows = app_module.db.execute(

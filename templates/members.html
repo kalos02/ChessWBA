@@ -9,15 +9,23 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/members.css') }}">
+<style>
+    .player-inactive { opacity: 0.5; }
+    .player-inactive .badge {
+        background: var(--border, #ccc);
+        color: var(--text-muted, #888);
+    }
+</style>
 <div class="page-header">
-    <h1> Community Members</h1>
-    <p>Meet {{ users|length }} amazing chess players</p>
+    <h1> Club Members</h1>
+    <p>Total members: {{ users|length }}</p>
 </div>
 
 <div class="table-container">
     <div class="members-toolbar">
-        <div class="table-search">
-            <input type="text" id="search" placeholder="Search players by name...">
+        <div class="toolbar-left">
+            <input type="text" id="search" placeholder="Search by name...">
+            <button type="button" id="search-btn" class="btn btn-secondary">Search</button>
         </div>
         <button type="button" id="add-player-btn" class="btn btn-primary">Add Player</button>
     </div>
@@ -36,7 +44,7 @@
         <tbody id="table-body">
             {% for user in users %}
             <tr
-                class="table-row"
+                class="table-row{% if not user.is_active %} player-inactive{% endif %}"
                 data-id="{{ user.id }}"
                 data-first-name="{{ user.first_name }}"
                 data-last-name="{{ user.last_name }}"
@@ -44,6 +52,8 @@
                 data-rank="{{ user.rank }}"
                 data-points="{{ user.points }}"
                 data-dob="{{ user.date_of_birth if user.date_of_birth else '' }}"
+                data-date-joined="{{ user.created_at[:10] if user.created_at else '' }}"
+                data-is-active="{{ user.is_active }}"
             >
                 <td>
                     <span class="rank-badge {% if user.rank == 1 %}gold{% elif user.rank == 2 %}silver{% elif user.rank == 3 %}bronze{% endif %}">
@@ -60,7 +70,7 @@
                             {% endif %}
                         </div>
                         <div>
-                            <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+                            <strong>{{ user.first_name }} {{ user.last_name }}{% if not user.is_active %}<span class="badge" style="font-size:0.7rem;margin-left:0.4rem;">Inactive</span>{% endif %}</strong>
                             <div class="text-muted user-handle">Club Player</div>
                         </div>
                     </div>
@@ -91,9 +101,15 @@
 
                                 {# HTML -> JS -> Flask trace:
                                     JS reads data-player-id on click, writes it to hidden input name="id",
-                                    then POST /deletePlayer is handled by delete_player() in app.py. #}
+                                    then POST /togglePlayerStatus is handled by toggle_player_status() in app.py. #}
 
-                        <button type="button" class="btn btn-sm btn-compact btn-danger delete-player-btn" data-player-id="{{ user.id }}">Delete</button>       
+                        {% if user.is_active %}
+                        <button type="button" class="btn btn-sm btn-compact btn-danger delete-player-btn"
+                                data-player-id="{{ user.id }}" data-is-active="1">Deactivate</button>
+                        {% else %}
+                        <button type="button" class="btn btn-sm btn-compact btn-primary delete-player-btn"
+                                data-player-id="{{ user.id }}" data-is-active="0">Activate</button>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -143,6 +159,10 @@
                     <input id="date-of-birth" name="date_of_birth" type="date">
                 </div>
                 <div class="members-field full">
+                    <label for="date-joined">Date Joined</label>
+                    <input id="date-joined" name="date_joined" type="date">
+                </div>
+                <div class="members-field full">
                     <label for="avatar">Profile Photo</label>
                     <span class="label-hint">Select an image when editing a player profile.</span>
                     <input id="avatar" name="avatar" type="file" accept=".jpg,.jpeg,.png,.gif">
@@ -160,25 +180,25 @@
 <div id="delete-modal-backdrop" class="members-modal-backdrop" aria-hidden="true">
     <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="members-modal-header">
-            <h3 id="delete-modal-title" class="members-modal-title">Confirm Delete</h3>
+            <h3 id="delete-modal-title" class="members-modal-title">Update Player Status</h3>
             <button type="button" id="delete-modal-close" class="members-modal-close" aria-label="Close">X</button>
         </div>
 
         {# Delete form route mapping:
            POST /deletePlayer (app.py delete_player)
            members.js writes selected playerId into hidden input below #}
-        <form id="delete-modal-form" class="members-modal-form" method="POST" action="/deletePlayer">
+        <form id="delete-modal-form" class="members-modal-form" method="POST" action="/togglePlayerStatus">
             {# playerId trace:
                JS copies button data-player-id into this field before submit.
-               Flask delete_player() uses id to delete one exact record. #}
+               Flask toggle_player_status() uses id to update one exact record. #}
             <input type="hidden" id="delete-player-id" name="id">
             <div class="members-modal-body">
-                <p class="text-muted members-delete-text">Are you sure you want to delete this player?</p>
+                <p class="text-muted members-delete-text">Are you sure you want to change this player's status? This will toggle between Active and Inactive.</p>
             </div>
 
             <div class="members-modal-footer">
                 <button type="button" id="delete-modal-cancel" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-danger">Delete</button>
+                <button type="submit" class="btn btn-danger">Confirm</button>
             </div>
         </form>
     </div>

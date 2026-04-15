@@ -14,8 +14,9 @@
 </div>
 <style>
     .dashboard-shell {
-        max-width: 1320px;
-        margin: 0 auto;
+        width: 100%;
+        max-width: none;
+        margin: 0;
         display: grid;
         gap: 12px;
     }
@@ -49,7 +50,7 @@
 
     .overview-shell {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 14px;
         align-items: stretch;
     }
@@ -65,20 +66,6 @@
 
     .overview-shell .stat-value {
         font-size: 1.34rem;
-    }
-
-    .overview-shell .top-player-highlight {
-        padding: 0.9rem;
-        gap: 10px;
-    }
-
-    .overview-shell .highlight-name {
-        font-size: 1.05rem;
-    }
-
-    .overview-shell .highlight-metrics {
-        margin-top: 6px;
-        gap: 8px;
     }
 
     .charts-grid {
@@ -98,76 +85,31 @@
         overflow: hidden;
     }
 
-    .analytics-panel > summary {
-        list-style: none;
-        cursor: pointer;
+    .analytics-header {
         padding: 0.88rem 1rem;
         color: var(--text-primary);
         font-weight: 700;
-        border-bottom: 1px solid transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.14);
         display: flex;
         align-items: center;
-        justify-content: space-between;
         gap: 12px;
     }
 
-    .analytics-panel[open] > summary {
-        border-bottom-color: rgba(255, 255, 255, 0.14);
-    }
-
-    .analytics-panel > summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .analytics-summary-copy {
+    .analytics-header-copy {
         display: grid;
         gap: 2px;
     }
 
-    .analytics-summary-title {
+    .analytics-header-title {
         font-size: 0.92rem;
         letter-spacing: 0.04em;
         text-transform: uppercase;
     }
 
-    .analytics-summary-sub {
+    .analytics-header-sub {
         color: var(--text-secondary);
         font-size: 0.74rem;
         font-weight: 500;
-    }
-
-    .analytics-summary-right {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .analytics-pill {
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 0.68rem;
-        color: var(--text-primary);
-        background: rgba(255, 255, 255, 0.06);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-    }
-
-    .analytics-panel[open] .analytics-pill {
-        color: #0d0d0d;
-        background: #f3f3f0;
-        border-color: transparent;
-    }
-
-    .analytics-caret {
-        color: var(--text-secondary);
-        font-size: 0.86rem;
-        transform: rotate(0deg);
-        transition: transform 0.18s ease;
-    }
-
-    .analytics-panel[open] .analytics-caret {
-        transform: rotate(180deg);
     }
 
     .analytics-content {
@@ -253,55 +195,11 @@
         grid-column: 1 / -1;
     }
 
-    .top-player-highlight {
-        background: linear-gradient(145deg, rgba(32, 32, 32, 0.96), rgba(22, 22, 22, 0.98));
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius);
-        padding: 0.88rem;
-        box-shadow: var(--shadow-soft);
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 12px;
-        align-items: center;
-    }
-
-    .highlight-label {
-        color: var(--text-muted);
-        font-size: 0.78rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        margin-bottom: 6px;
-    }
-
-    .highlight-name {
-        color: var(--text-primary);
-        font-size: 1.06rem;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-
-    .highlight-metrics {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 8px;
-    }
-
-    .highlight-pill {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        padding: 4px 10px;
-        color: var(--text-primary);
-        font-size: 0.82rem;
-        font-weight: 600;
-    }
-
     .table-card {
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 0.68rem;
+        padding: 1rem;
         box-shadow: var(--shadow-soft);
     }
 
@@ -325,7 +223,7 @@
 
     .table-card th,
     .table-card td {
-        padding: 7px 7px;
+        padding: 12px 12px;
         border-bottom: 1px solid var(--border);
         text-align: left;
         white-space: normal;
@@ -363,16 +261,35 @@
         width: 16%;
     }
 
+    #by-points-table th:nth-child(1),
+    #by-points-table td:nth-child(1) {
+        width: 11%;
+        white-space: nowrap;
+        word-break: normal;
+    }
+
+    #by-points-table th:nth-child(3),
+    #by-points-table td:nth-child(3) {
+        width: 31%;
+    }
+
+    #by-points-table th:nth-child(4),
+    #by-points-table td:nth-child(4) {
+        width: 14%;
+        white-space: nowrap;
+        word-break: normal;
+    }
+
     .table-card th {
         color: var(--text-muted);
-        font-size: 0.74rem;
+        font-size: 0.8rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
     }
 
     .table-card td {
         color: var(--text-muted);
-        font-size: 0.84rem;
+        font-size: 0.9rem;
         line-height: 1.3;
     }
 
@@ -454,12 +371,6 @@
             grid-template-columns: 1fr;
         }
     }
-
-    @media (max-width: 960px) {
-        .top-player-highlight {
-            grid-template-columns: 1fr;
-        }
-    }
 </style>
 
 {% set top_points_all = (users | sort(attribute='points', reverse=true))[:20] %}
@@ -471,63 +382,13 @@
 {% set has_outcome_data = (decisive_matches + draws) > 0 %}
 
 <div class="dashboard-shell">
-<section class="overview-shell section-gap">
-    <div>
-        <h3 class="section-title">Club Overview</h3>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Members</div>
-                <div class="stat-value accent">{{ total_members }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Matches</div>
-                <div class="stat-value accent">{{ total_matches }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Current Rank</div>
-                <div class="stat-value accent">#{{ user_rank }}</div>
-            </div>
-            {% if top_player %}
-            <div class="stat-card">
-                <div class="stat-label">Top Player</div>
-                <div class="top-player-name">{{ top_player.first_name }} {{ top_player.last_name }}</div>
-            </div>
-            {% endif %}
-        </div>
+<section id="analytics-panel" class="analytics-panel section-gap">
+    <div class="analytics-header">
+        <span class="analytics-header-copy">
+            <span class="analytics-header-title">Detailed Analytics</span>
+            <span class="analytics-header-sub">Trends and performance charts</span>
+        </span>
     </div>
-
-    {% if top_player %}
-    <article class="top-player-highlight">
-        <div>
-            <div class="highlight-label">Top Player Highlight</div>
-            <div class="highlight-name">#1 {{ top_player.first_name }} {{ top_player.last_name }}</div>
-            <div class="highlight-metrics">
-                <span class="highlight-pill">Points: {{ top_player.points }}</span>
-                <span class="highlight-pill">Win Ratio: {{ top_player.win_ratio }}%</span>
-            </div>
-        </div>
-        <span class="avatar-circle">
-            {% if get_avatar_url(top_player.id) %}
-                <img src="{{ get_avatar_url(top_player.id) }}" alt="{{ top_player.first_name }} {{ top_player.last_name }} avatar">
-            {% else %}
-                {{ get_initials(top_player.first_name, top_player.last_name) }}
-            {% endif %}
-        </span>
-    </article>
-    {% endif %}
-</section>
-
-<details id="analytics-panel" class="analytics-panel section-gap">
-    <summary>
-        <span class="analytics-summary-copy">
-            <span class="analytics-summary-title">Detailed Analytics</span>
-            <span class="analytics-summary-sub">Trends and performance charts</span>
-        </span>
-        <span class="analytics-summary-right">
-            <span class="analytics-pill">Tap to expand</span>
-            <span class="analytics-caret" aria-hidden="true">▾</span>
-        </span>
-    </summary>
     <div class="analytics-content">
     <div class="charts-grid">
     <article class="chart-card wide">
@@ -569,7 +430,7 @@
     </article>
     </div>
     </div>
-</details>
+</section>
 
 <section id="rankings" class="tables-grid section-gap">
     <h3 class="section-title full-row">Top 10 Rankings</h3>
@@ -582,26 +443,10 @@
                     <tr>
                         <th>Rank</th>
                         <th>Avatar</th>
-                        <th>
-                            <button type="button" class="sort-btn" data-sort-key="name" data-sort-type="string" data-sort-order="asc">
-                                Full Name <span class="sort-indicator">↕</span>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="sort-btn" data-sort-key="points" data-sort-type="number" data-sort-order="asc">
-                                Points <span class="sort-indicator">↕</span>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="sort-btn" data-sort-key="matches" data-sort-type="number" data-sort-order="asc">
-                                Matches Played <span class="sort-indicator">↕</span>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="sort-btn" data-sort-key="ratio" data-sort-type="number" data-sort-order="asc">
-                                Win Ratio <span class="sort-indicator">↕</span>
-                            </button>
-                        </th>
+                        <th>Full Name</th>
+                        <th>Points</th>
+                        <th>Matches Played</th>
+                        <th>Win Ratio</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -645,10 +490,10 @@
     <article class="table-card">
         <h3 class="table-title">By Points</h3>
         <div class="table-scroll">
-            <table>
+            <table id="by-points-table">
                 <thead>
                     <tr>
-                        <th>Rank</th>
+                        <th>Points</th>
                         <th>Avatar</th>
                         <th>Full Name</th>
                         <th>Points</th>
@@ -659,7 +504,7 @@
                 <tbody>
                     {% for user in points_users %}
                     <tr class="data-row" data-name="{{ user.first_name }} {{ user.last_name }}">
-                        <td>#{{ user.rank }}</td>
+                        <td>#{{ loop.index }}</td>
                         <td>
                             <span class="avatar-circle small">
                                 {% if get_avatar_url(user.id) %}

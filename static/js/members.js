@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const MODAL_HIDDEN_DISPLAY = 'none';
     const ROUTE_ADD_PLAYER = '/addPlayer';
     const ROUTE_EDIT_PLAYER = '/editPlayer';
-    const ROUTE_DELETE_PLAYER = '/deletePlayer';
+    const ROUTE_DELETE_PLAYER = '/togglePlayerStatus';
 
     function debugLog(...args) {
         if (!ENABLE_MEMBERS_DEBUG_LOGS) {
@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Section 1: DOM references used on the Members page.
     const searchInput = document.getElementById('search');
+    const searchButton = document.getElementById('search-btn');
     const playerTableRows = document.querySelectorAll('.table-row');
     const addPlayerButton = document.getElementById('add-player-btn');
     const editPlayerButtons = document.querySelectorAll('.edit-player-btn');
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const playerRankingInput = document.getElementById('ranking');
     const playerPointsInput = document.getElementById('points');
     const playerDateOfBirthInput = document.getElementById('date-of-birth');
+    const playerDateJoinedInput = document.getElementById('date-joined');
     const playerAvatarInput = document.getElementById('avatar');
 
     const deleteModalBackdrop = document.getElementById('delete-modal-backdrop');
@@ -116,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setInputValue(playerRankingInput, values.ranking);
         setInputValue(playerPointsInput, values.points);
         setInputValue(playerDateOfBirthInput, values.dateOfBirth);
+        setInputValue(playerDateJoinedInput, values.dateJoined);
 
         if (playerAvatarInput) {
             playerAvatarInput.value = '';
@@ -130,7 +133,8 @@ document.addEventListener('DOMContentLoaded', function () {
             city: playerRow.dataset.city || '',
             ranking: playerRow.dataset.rank || '',
             points: playerRow.dataset.points || 0,
-            dateOfBirth: playerRow.dataset.dob ? String(playerRow.dataset.dob).slice(0, 10) : ''
+            dateOfBirth: playerRow.dataset.dob ? String(playerRow.dataset.dob).slice(0, 10) : '',
+            dateJoined: playerRow.dataset.dateJoined ? String(playerRow.dataset.dateJoined).slice(0, 10) : ''
         };
     }
 
@@ -220,7 +224,8 @@ document.addEventListener('DOMContentLoaded', function () {
             city: '',
             ranking: '',
             points: 0,
-            dateOfBirth: ''
+            dateOfBirth: '',
+            dateJoined: ''
         });
 
         showModal(playerModalBackdrop);
@@ -241,15 +246,25 @@ document.addEventListener('DOMContentLoaded', function () {
         playerFirstNameInput.focus();
     }
 
-        function openDeletePlayerModal(playerId) {
-                // Delete flow:
+        function openDeletePlayerModal(playerId, isActive) {
+                // Toggle flow:
                 // Delete button data-player-id -> JS sets hidden input #delete-player-id ->
-                // form POST /deletePlayer -> delete_player() in app.py.
+                // form POST /togglePlayerStatus -> toggle_player_status() in app.py.
                 // playerId is the unique identifier. We do not use names because names can repeat.
                 debugLog('[Members][Delete] Opening Delete Modal for playerId: ' + playerId);
                 debugLog('[Members][Delete] Setting hidden delete id field to: ' + playerId);
 
                 setInputValue(deletePlayerIdInput, playerId);
+                const confirmBtn = deleteModalForm
+                    ? deleteModalForm.querySelector('[type="submit"]')
+                    : null;
+                const modalTitle = document.getElementById('delete-modal-title');
+                if (confirmBtn) {
+                    confirmBtn.textContent = isActive === '1' ? 'Deactivate' : 'Activate';
+                }
+                if (modalTitle) {
+                    modalTitle.textContent = isActive === '1' ? 'Deactivate Player' : 'Activate Player';
+                }
                 showModal(deleteModalBackdrop);
     }
 
@@ -275,10 +290,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Section 3: Event listeners (click -> JS -> form submit -> Flask route).
+    function runSearch() {
+        filterPlayerRows(searchInput.value, playerTableRows);
+    }
+
     if (searchInput) {
-        searchInput.addEventListener(SEARCH_FILTER_EVENT, function () {
-            filterPlayerRows(searchInput.value, playerTableRows);
+        searchInput.addEventListener(SEARCH_FILTER_EVENT, runSearch);
+        searchInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                runSearch();
+            }
         });
+    }
+
+    if (searchButton) {
+        searchButton.addEventListener('click', runSearch);
     }
 
     if (addPlayerButton) {
@@ -316,11 +343,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            const isActive = deleteButton.dataset.isActive || '1';
+
             runDebugFlow(
                 '[Members][Delete] Flow',
                 '[Members][Delete] Delete button clicked for playerId: ' + playerId,
                 function () {
-                    openDeletePlayerModal(playerId);
+                    openDeletePlayerModal(playerId, isActive);
                 }
             );
         });

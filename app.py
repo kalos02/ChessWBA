@@ -17,6 +17,7 @@ Database contract used by this file:
 - ChessAdminApp_match
 """
 
+import logging
 import os
 import re
 import sqlite3
@@ -31,6 +32,14 @@ from helpers import (
     login_required,
     get_initials,
 )
+
+# Configure module-level logger for clean debug/error output.
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 
 # -----------------------------------------------------------------------------
@@ -109,10 +118,13 @@ REQUIRED_DB_SCHEMA = {
         "ranking",
         "points",
         "date_of_birth",
+        "is_active",
     },
     "ChessAdminApp_match": {
         "id",
         "scheduled_date",
+        "status",
+        "venue",
         "match_result",
         "player_one_entry_ranking",
         "player_two_entry_ranking",
@@ -276,6 +288,7 @@ def get_player_form_data(form_data):
         "ranking_raw": form_data.get("ranking", "").strip(),
         "points_raw": form_data.get("points", "").strip(),
         "date_of_birth": form_data.get("date_of_birth", "").strip() or None,
+        "date_joined": form_data.get("date_joined", "").strip() or None,
     }
 
 
@@ -301,7 +314,7 @@ def parse_player_id(player_id_raw):
 
 def get_player_count():
     """Return total number of players currently stored."""
-    count_rows = db.execute("SELECT COUNT(*) AS count FROM ChessAdminApp_player")
+    count_rows = db.execute("SELECT COUNT(*) AS count FROM ChessAdminApp_player WHERE COALESCE(is_active, 1) = 1")
     return int(count_rows[0]["count"]) if count_rows else 0
 
 
@@ -332,6 +345,7 @@ def has_rank_conflict(rank, points, exclude_player_id=None):
             FROM ChessAdminApp_player
             WHERE ranking = ?
               AND points != ?
+              AND COALESCE(is_active, 1) = 1
             """,
             rank,
             points,
@@ -344,6 +358,7 @@ def has_rank_conflict(rank, points, exclude_player_id=None):
             WHERE id != ?
               AND ranking = ?
               AND points != ?
+              AND COALESCE(is_active, 1) = 1
             """,
             exclude_player_id,
             rank,
@@ -372,6 +387,7 @@ def shift_ranks_for_add(new_rank, new_points):
             UPDATE ChessAdminApp_player
             SET ranking = ranking + 1
             WHERE ranking >= ?
+              AND COALESCE(is_active, 1) = 1
             """,
             safe_rank,
         )
@@ -408,6 +424,7 @@ def shift_ranks_for_edit(player_id, new_rank, new_points):
             SET ranking = ranking + 1
             WHERE id != ?
               AND ranking >= ?
+              AND COALESCE(is_active, 1) = 1
             """,
             player_id,
             safe_rank,
@@ -428,6 +445,7 @@ def normalize_rankings_with_ties():
         """
         SELECT id, ranking, points
         FROM ChessAdminApp_player
+        WHERE COALESCE(is_active, 1) = 1
         ORDER BY ranking ASC, id ASC
         """
     ) or []
@@ -476,7 +494,7 @@ def normalize_rankings_with_ties():
 @app.before_request
 def before_request():
     """Lightweight request debug logging."""
-    print("BACKEND DEBUG: Received request to {} with method {}".format(request.path, request.method))
+    logger.debug("Request: %s %s", request.method, request.path)
 
 
 # -----------------------------------------------------------------------------
@@ -488,7 +506,7 @@ def register():
     if not app.config.get("AUTH_PHASE_ENABLED", False):
         return apology("Authentication is disabled for this phase.", 503)
 
-    print("BACKEND DEBUG: Received request to /register with body:", request.form.to_dict())
+    logger.debug("POST /register body: %s", request.form.to_dict())
     if request.method == "GET":
         return render_template("register.html")
 
@@ -569,7 +587,7 @@ def register():
         flash("Registered successfully! Please log in.", "success")
         return redirect("/login")
     except Exception as exc:
-        print("Registration error: {}".format(exc))
+        logger.error("Registration error: %s", exc)
         flash("An error occurred during registration.", "error")
         return render_template("register.html")
 
@@ -580,7 +598,7 @@ def login():
     if not app.config.get("AUTH_PHASE_ENABLED", False):
         return apology("Authentication is disabled for this phase.", 503)
 
-    print("BACKEND DEBUG: Received request to /login with body:", request.form.to_dict())
+    logger.debug("POST /login body: %s", request.form.to_dict())
     session.clear()
 
     if request.method == "GET":
@@ -621,7 +639,7 @@ def logout():
     if not app.config.get("AUTH_PHASE_ENABLED", False):
         return redirect("/")
 
-    print("BACKEND DEBUG: Received request to /logout with params:", request.args.to_dict())
+    logger.debug("GET /logout params: %s", request.args.to_dict())
     session.clear()
     flash("You have been logged out.", "success")
     return redirect("/login")
@@ -631,14 +649,13 @@ def logout():
 # Application Routes
 # -----------------------------------------------------------------------------
 @app.route("/")
-
 def index():
     """Leaderboard home page."""
-    print("BACKEND DEBUG: Received request to / with user_id:", session.get("user_id"))
-    current_user_idPy = session.get("user_id")
+    logger.debug("GET / user_id: %s", session.get("user_id"))
+    current_user_id = session.get("user_id")
 
     # Leaderboard users with match stats.
-    usersPy = db.execute(
+    users = db.execute(
         """
         WITH match_stats AS (
             SELECT
@@ -674,24 +691,25 @@ def index():
         FROM ChessAdminApp_player cp
         LEFT JOIN auth_user au ON cp.id = au.id
         LEFT JOIN match_stats ms ON ms.player_id = cp.id
+        WHERE COALESCE(cp.is_active, 1) = 1
         ORDER BY cp.ranking ASC
         """
     ) or []
 
-    points_usersPy = sorted(usersPy, key=lambda u: (u["points"], -u["rank"]), reverse=True)
+    points_users = sorted(users, key=lambda u: (-u["points"], u["rank"]))
 
-    total_membersPy = len(usersPy) if usersPy else 0
+    total_members = len(users) if users else 0
     match_count_rows = db.execute("SELECT COUNT(*) AS count FROM ChessAdminApp_match")
-    total_matchesPy = match_count_rows[0]["count"] if match_count_rows else 0
-    top_playerPy = usersPy[0] if usersPy else None
+    total_matches = match_count_rows[0]["count"] if match_count_rows else 0
+    top_player = users[0] if users else None
 
-    user_rankPy = 0
-    if current_user_idPy is not None:
+    user_rank = 0
+    if current_user_id is not None:
         current_user_rows = db.execute(
             "SELECT ranking FROM ChessAdminApp_player WHERE id = ?",
-            current_user_idPy,
+            current_user_id,
         )
-        user_rankPy = current_user_rows[0]["ranking"] if current_user_rows else 0
+        user_rank = current_user_rows[0]["ranking"] if current_user_rows else 0
 
     # Club-wide outcomes: each match is decisive (one winner) or draw.
     outcome_rows = db.execute(
@@ -704,28 +722,27 @@ def index():
     )
 
     outcomes = outcome_rows[0] if outcome_rows else {}
-    decisive_matchesPy = int(outcomes.get("decisive_matches") or 0)
-    drawsPy = int(outcomes.get("draws") or 0)
+    decisive_matches = int(outcomes.get("decisive_matches") or 0)
+    draws = int(outcomes.get("draws") or 0)
 
     return render_template(
         "index.html",
-        users=usersPy,
-        points_users=points_usersPy,
-        total_members=total_membersPy,
-        total_matches=total_matchesPy,
-        top_player=top_playerPy,
-        user_rank=user_rankPy,
-        decisive_matches=decisive_matchesPy,
-        draws=drawsPy,
-        current_user_id=current_user_idPy,
+        users=users,
+        points_users=points_users,
+        total_members=total_members,
+        total_matches=total_matches,
+        top_player=top_player,
+        user_rank=user_rank,
+        decisive_matches=decisive_matches,
+        draws=draws,
+        current_user_id=current_user_id,
     )
 
 
 @app.route("/members")
-
 def members():
     """Members list page."""
-    print("BACKEND DEBUG: Received request to /members with user_id:", session.get("user_id"))
+    logger.debug("GET /members user_id: %s", session.get("user_id"))
 
     users = db.execute(
         """
@@ -737,6 +754,7 @@ def members():
             cp.ranking AS rank,
             cp.points,
             cp.date_of_birth,
+            cp.is_active,
             au.email,
             au.username,
             COALESCE(au.date_joined, cp.date_joined) AS created_at
@@ -752,7 +770,7 @@ def members():
 @app.route("/addPlayer", methods=["POST"])
 def add_player():
     """Create a new player from members page form data."""
-    print("BACKEND DEBUG: Received request to /addPlayer with body:", request.form.to_dict())
+    logger.debug("POST /addPlayer body: %s", request.form.to_dict())
 
     # Route action: Add Player -> POST /addPlayer.
     # Step 1: Read form data from members.html Add/Edit modal inputs.
@@ -763,6 +781,7 @@ def add_player():
     ranking_raw = player_form_data["ranking_raw"]
     points_raw = player_form_data["points_raw"]
     date_of_birth = player_form_data["date_of_birth"]
+    date_joined = player_form_data["date_joined"]
 
     # Step 2: Validate required fields and numeric values.
     if is_empty(first_name, last_name):
@@ -791,11 +810,14 @@ def add_player():
     try:
         safe_rank = shift_ranks_for_add(ranking, points)
 
+        # Use user-supplied date_joined, or default to now.
+        joined_value = date_joined if date_joined else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         # Step 4: Insert player row in DB.
         db.execute(
             """
             INSERT INTO ChessAdminApp_player (first_name, last_name, city, ranking, points, date_of_birth, date_joined)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             first_name,
             last_name,
@@ -803,12 +825,13 @@ def add_player():
             safe_rank,
             points,
             date_of_birth,
+            joined_value,
         )
 
         normalize_rankings_with_ties()
         flash("Player added successfully.", "success")
     except Exception as exc:
-        print("Add player error: {}".format(exc))
+        logger.error("Add player error: %s", exc)
         flash("Could not add player.", "error")
 
     return redirect("/members")
@@ -817,7 +840,7 @@ def add_player():
 @app.route("/editPlayer", methods=["POST"])
 def edit_player():
     """Update an existing player by id from members page form data."""
-    print("BACKEND DEBUG: Received request to /editPlayer with body:", request.form.to_dict())
+    logger.debug("POST /editPlayer body: %s", request.form.to_dict())
 
     # Route action: Edit Player -> POST /editPlayer.
     # Step 1: Read playerId and form fields from members.html shared modal.
@@ -830,6 +853,7 @@ def edit_player():
     ranking_raw = player_form_data["ranking_raw"]
     points_raw = player_form_data["points_raw"]
     date_of_birth = player_form_data["date_of_birth"]
+    date_joined = player_form_data["date_joined"]
     avatar_file = request.files.get("avatar")
 
     if not player_id_raw:
@@ -869,7 +893,7 @@ def edit_player():
         db.execute(
             """
             UPDATE ChessAdminApp_player
-            SET first_name = ?, last_name = ?, city = ?, ranking = ?, points = ?, date_of_birth = ?
+            SET first_name = ?, last_name = ?, city = ?, ranking = ?, points = ?, date_of_birth = ?, date_joined = ?
             WHERE id = ?
             """,
             first_name,
@@ -878,6 +902,7 @@ def edit_player():
             safe_rank,
             points,
             date_of_birth,
+            date_joined,
             player_id,
         )
 
@@ -887,10 +912,10 @@ def edit_player():
         normalize_rankings_with_ties()
         flash("Player updated successfully.", "success")
     except ValueError as exc:
-        print("Edit player avatar upload error: {}".format(exc))
+        logger.error("Edit player avatar upload error: %s", exc)
         flash(str(exc), "error")
     except Exception as exc:
-        print("Edit player error: {}".format(exc))
+        logger.error("Edit player error: %s", exc)
         flash("Could not update player.", "error")
 
     return redirect("/members")
@@ -899,7 +924,7 @@ def edit_player():
 @app.route("/deletePlayer", methods=["POST"])
 def delete_player():
     """Delete a player by id from members page."""
-    print("BACKEND DEBUG: Received request to /deletePlayer with body:", request.form.to_dict())
+    logger.debug("POST /deletePlayer body: %s", request.form.to_dict())
 
     # Route action: Delete Player -> POST /deletePlayer.
     # Step 1: Read playerId from delete modal hidden input.
@@ -940,8 +965,49 @@ def delete_player():
         normalize_rankings_with_ties()
         flash("Player deleted successfully.", "success")
     except Exception as exc:
-        print("Delete player error: {}".format(exc))
+        logger.error("Delete player error: %s", exc)
         flash("Could not delete player.", "error")
+
+    return redirect("/members")
+
+
+@app.route("/togglePlayerStatus", methods=["POST"])
+def toggle_player_status():
+    """Toggle a player's active/inactive status. Soft delete — row is never removed."""
+    logger.debug("POST /togglePlayerStatus body: %s", request.form.to_dict())
+
+    player_id_raw = get_player_id_raw(request.form)
+    if not player_id_raw:
+        flash("Player id is required.", "error")
+        return redirect("/members")
+
+    try:
+        player_id = parse_player_id(player_id_raw)
+    except ValueError:
+        flash("Invalid player id.", "error")
+        return redirect("/members")
+
+    player_rows = db.execute(
+        "SELECT id, is_active FROM ChessAdminApp_player WHERE id = ?",
+        player_id,
+    )
+    if not player_rows:
+        flash("Player not found.", "error")
+        return redirect("/members")
+
+    current_is_active = int(player_rows[0]["is_active"]) if player_rows[0]["is_active"] is not None else 1
+    new_status = 0 if current_is_active == 1 else 1
+
+    try:
+        db.execute(
+            "UPDATE ChessAdminApp_player SET is_active = ? WHERE id = ?",
+            new_status,
+            player_id,
+        )
+        flash("Player deactivated." if new_status == 0 else "Player reactivated.", "success")
+    except Exception as exc:
+        logger.error("Toggle player status error: %s", exc)
+        flash("Could not update player status.", "error")
 
     return redirect("/members")
 
@@ -949,10 +1015,7 @@ def delete_player():
 @app.route("/profile/<int:user_id>")
 def profile(user_id):
     """Player profile page."""
-    print(
-        "BACKEND DEBUG: Received request to /profile/{} with current user_id:".format(user_id),
-        session.get("user_id"),
-    )
+    logger.debug("GET /profile/%s user_id: %s", user_id, session.get("user_id"))
 
     user_rows = db.execute(
         """
@@ -1050,12 +1113,7 @@ def edit_profile():
     if not app.config.get("AUTH_PHASE_ENABLED", False):
         return apology("Edit profile is disabled for this phase.", 503)
 
-    print(
-        "BACKEND DEBUG: Received request to /edit_profile with user_id:",
-        session.get("user_id"),
-        "body:",
-        request.form.to_dict(),
-    )
+    logger.debug("Request /edit_profile user_id=%s body=%s", session.get("user_id"), request.form.to_dict())
 
     user_id = session["user_id"]
 
@@ -1133,7 +1191,7 @@ def edit_profile():
         flash("Profile updated successfully.", "success")
         return redirect("/profile/{}".format(user_id))
     except ValueError as exc:
-        print("Avatar upload error: {}".format(exc))
+        logger.error("Avatar upload error: %s", exc)
         flash(str(exc), "error")
         user["first_name"] = first_name
         user["last_name"] = last_name
@@ -1142,7 +1200,7 @@ def edit_profile():
         user["avatar_url"] = get_avatar_url(user_id)
         return render_template("edit_profile.html", user=user)
     except Exception as exc:
-        print("Edit profile error: {}".format(exc))
+        logger.error("Edit profile error: %s", exc)
         flash("An error occurred while updating profile.", "error")
         user["first_name"] = first_name
         user["last_name"] = last_name
@@ -1155,12 +1213,10 @@ def edit_profile():
 @app.route("/match", methods=["GET", "POST"])
 def match():
     """Record a completed match without recalculating rankings."""
-    print(
-        "BACKEND DEBUG: Received request to /match with method:",
+    logger.debug(
+        "Request /match method=%s user_id=%s body=%s",
         request.method,
-        "user_id:",
         session.get("user_id"),
-        "body:",
         request.form.to_dict(),
     )
 
@@ -1174,6 +1230,7 @@ def match():
                 cp.last_name,
                 cp.ranking
             FROM ChessAdminApp_player cp
+            WHERE COALESCE(cp.is_active, 1) = 1
             ORDER BY cp.ranking ASC
             """
         )
@@ -1182,7 +1239,21 @@ def match():
     try:
         player_one_id = int(request.form.get("player1_id", 0))
         player_two_id = int(request.form.get("player2_id", 0))
+        venue = request.form.get("venue", "").strip() or "Chess Club"
+        scheduled_date_raw = request.form.get("scheduled_date", "").strip()
+        status = request.form.get("status", "SCHEDULED").strip().upper()
         result = request.form.get("result", "").strip()
+
+        if status in {"PENDING", "SCHEDULED"}:
+            status = "SCHEDULED"
+        elif status == "PLAYING":
+            status = "PLAYING"
+        elif status in {"COMPLETE", "COMPLETED"}:
+            status = "COMPLETED"
+        elif status in {"CANCELED", "CANCELLED"}:
+            status = "CANCELED"
+        else:
+            status = "SCHEDULED"
 
         if player_one_id == player_two_id:
             flash("Players must be different.", "error")
@@ -1194,27 +1265,46 @@ def match():
             flash("One or both players not found.", "error")
             return redirect("/match")
 
-        if result not in ["p1", "draw", "p2"]:
-            flash("Invalid result.", "error")
+        if status == "COMPLETED" and result not in ["p1", "draw", "p2"]:
+            flash("A result is required for completed matches.", "error")
             return redirect("/match")
 
         p1 = p1_rows[0]
         p2 = p2_rows[0]
 
-        if result == "p1":
-            winner_id = player_one_id
-        elif result == "p2":
-            winner_id = player_two_id
+        scheduled_date = scheduled_date_raw if scheduled_date_raw else datetime.now().strftime("%Y-%m-%d")
+
+        if status == "COMPLETED":
+            if result == "p1":
+                winner_id = player_one_id
+                match_result = "WIN"
+            elif result == "p2":
+                winner_id = player_two_id
+                match_result = "WIN"
+            elif result == "draw":
+                winner_id = None
+                match_result = "DRAW"
+            else:
+                winner_id = None
+                match_result = None
         else:
             winner_id = None
+            match_result = None
 
-        match_result = "DRAW" if result == "draw" else "WIN"
+        if status in {"PLAYING", "COMPLETED"}:
+            player_one_entry_ranking = p1["ranking"]
+            player_two_entry_ranking = p2["ranking"]
+        else:
+            player_one_entry_ranking = None
+            player_two_entry_ranking = None
 
-        # Ranking changes are intentionally disabled for now (teacher-led phase).
-        player_one_ranking_change = 0
-        player_two_ranking_change = 0
+        if status == "COMPLETED":
+            player_one_ranking_change = 0
+            player_two_ranking_change = 0
+        else:
+            player_one_ranking_change = None
+            player_two_ranking_change = None
 
-        # Insert completed match record (existing DB columns used only).
         db.execute(
             """
             INSERT INTO ChessAdminApp_match
@@ -1223,14 +1313,17 @@ def match():
                  player_one_ranking_change, player_two_ranking_change,
                  follow_live, player_one_id, player_two_id, winner_id,
                  player_one_points_change, player_two_points_change)
-            VALUES (datetime('now'), 'COMPLETED', 'Chess Club', ?,
+            VALUES (?, ?, ?, ?,
                     ?, ?, ?, ?,
                     'N/A', ?, ?, ?,
                     0, 0)
             """,
+            scheduled_date,
+            status,
+            venue,
             match_result,
-            p1["ranking"],
-            p2["ranking"],
+            player_one_entry_ranking,
+            player_two_entry_ranking,
             player_one_ranking_change,
             player_two_ranking_change,
             player_one_id,
@@ -1238,22 +1331,217 @@ def match():
             winner_id,
         )
 
-        flash("Match recorded.", "success")
-        return redirect("/")
+        flash("Match saved.", "success")
+        return redirect("/history")
     except Exception as exc:
-        print("Match recording error: {}".format(exc))
-        flash("An error occurred while recording the match.", "error")
+        logger.error("Match recording error: %s", exc)
+        flash("An error occurred while saving the match.", "error")
         return redirect("/match")
+
+
+@app.route("/deleteMatch", methods=["POST"])
+def delete_match():
+    """Delete a match record by id from the history page."""
+    logger.debug("POST /deleteMatch body: %s", request.form.to_dict())
+
+    # Route action: Delete Match -> POST /deleteMatch.
+    # Step 1: Read match_id from the delete modal hidden input.
+    match_id_raw = request.form.get("match_id", "").strip()
+    if not match_id_raw:
+        flash("Match id is required for deletion.", "error")
+        return redirect("/history")
+
+    # Step 2: Validate and parse match id.
+    try:
+        match_id = int(match_id_raw)
+    except ValueError:
+        flash("Invalid match id.", "error")
+        return redirect("/history")
+
+    # Step 3: Confirm the match exists before attempting delete.
+    existing = db.execute("SELECT id FROM ChessAdminApp_match WHERE id = ?", match_id)
+    if not existing:
+        flash("Match not found.", "error")
+        return redirect("/history")
+
+    # Step 4: Delete the match row.
+    try:
+        db.execute("DELETE FROM ChessAdminApp_match WHERE id = ?", match_id)
+        flash("Match deleted successfully.", "success")
+    except Exception as exc:
+        logger.error("Delete match error: %s", exc)
+        flash("Could not delete match.", "error")
+
+    return redirect("/history")
+
+
+@app.route("/editMatch", methods=["POST"])
+def edit_match():
+    """Update an existing match result by id from the history page."""
+    logger.debug("POST /editMatch body: %s", request.form.to_dict())
+
+    # Route action: Edit Match -> POST /editMatch.
+    # Step 1: Read form fields from the edit modal.
+    match_id_raw = request.form.get("match_id", "").strip()
+    player1_id_raw = request.form.get("player1_id", "").strip()
+    player2_id_raw = request.form.get("player2_id", "").strip()
+    result = request.form.get("result", "").strip()
+    venue = request.form.get("venue", "").strip() or None
+    scheduled_date = request.form.get("scheduled_date", "").strip() or None
+    status = request.form.get("status", "").strip().upper() or "SCHEDULED"
+
+    if status in {"PENDING", "SCHEDULED"}:
+        status = "SCHEDULED"
+    elif status == "PLAYING":
+        status = "PLAYING"
+    elif status in {"COMPLETE", "COMPLETED"}:
+        status = "COMPLETED"
+    elif status in {"CANCELED", "CANCELLED"}:
+        status = "CANCELED"
+    else:
+        status = "SCHEDULED"
+
+    # Step 2: Validate inputs.
+    if not match_id_raw:
+        flash("Match id is required for update.", "error")
+        return redirect("/history")
+
+    try:
+        match_id = int(match_id_raw)
+        player1_id = int(player1_id_raw) if player1_id_raw else 0
+        player2_id = int(player2_id_raw) if player2_id_raw else 0
+    except ValueError:
+        flash("Invalid match or player id.", "error")
+        return redirect("/history")
+
+    # Step 3: Confirm the match exists.
+    existing = db.execute(
+        """
+        SELECT id, player_one_id, player_two_id, venue, scheduled_date, status, match_result, winner_id
+        FROM ChessAdminApp_match
+        WHERE id = ?
+        """,
+        match_id,
+    )
+    if not existing:
+        flash("Match not found.", "error")
+        return redirect("/history")
+
+    existing_match = existing[0]
+
+    # Use stored player ids if the form didn't supply them.
+    if not player1_id:
+        player1_id = existing_match["player_one_id"]
+    if not player2_id:
+        player2_id = existing_match["player_two_id"]
+
+    if player1_id == player2_id:
+        flash("Players must be different.", "error")
+        return redirect("/history")
+
+    p1_rows = db.execute(
+        "SELECT id, ranking FROM ChessAdminApp_player WHERE id = ?",
+        player1_id,
+    )
+    p2_rows = db.execute(
+        "SELECT id, ranking FROM ChessAdminApp_player WHERE id = ?",
+        player2_id,
+    )
+    if not p1_rows or not p2_rows:
+        flash("One or both players not found.", "error")
+        return redirect("/history")
+
+    p1 = p1_rows[0]
+    p2 = p2_rows[0]
+
+    if not venue:
+        venue = existing_match["venue"] or "Chess Club"
+
+    existing_status = (existing_match.get("status") or "SCHEDULED").upper()
+    existing_result = existing_match.get("match_result")
+    existing_winner_id = existing_match.get("winner_id")
+
+    # Step 4: Derive winner_id and match_result from the result selector.
+    if status == "COMPLETED":
+        if result == "p1":
+            winner_id = player1_id
+            match_result = "WIN"
+        elif result == "p2":
+            winner_id = player2_id
+            match_result = "WIN"
+        elif result == "draw":
+            winner_id = None
+            match_result = "DRAW"
+        elif existing_status == "COMPLETED" and existing_result in {"WIN", "DRAW"}:
+            winner_id = existing_winner_id
+            match_result = existing_result
+        else:
+            flash("A result is required for completed matches.", "error")
+            return redirect("/history")
+    else:
+        winner_id = None
+        match_result = None
+
+    if status in {"PLAYING", "COMPLETED"}:
+        player_one_entry_ranking = p1["ranking"]
+        player_two_entry_ranking = p2["ranking"]
+    else:
+        player_one_entry_ranking = None
+        player_two_entry_ranking = None
+
+    if status == "COMPLETED":
+        player_one_ranking_change = 0
+        player_two_ranking_change = 0
+    else:
+        player_one_ranking_change = None
+        player_two_ranking_change = None
+
+    # Step 5: Persist updated fields.
+    try:
+        db.execute(
+            """
+            UPDATE ChessAdminApp_match
+            SET player_one_id = ?,
+                player_two_id = ?,
+                player_one_entry_ranking = ?,
+                player_two_entry_ranking = ?,
+                player_one_ranking_change = ?,
+                player_two_ranking_change = ?,
+                match_result = ?,
+                winner_id = ?,
+                venue = ?,
+                scheduled_date = COALESCE(?, scheduled_date),
+                status = ?
+            WHERE id = ?
+            """,
+            player1_id,
+            player2_id,
+            player_one_entry_ranking,
+            player_two_entry_ranking,
+            player_one_ranking_change,
+            player_two_ranking_change,
+            match_result,
+            winner_id,
+            venue,
+            scheduled_date,
+            status,
+            match_id,
+        )
+        flash("Match updated successfully.", "success")
+    except Exception as exc:
+        logger.error("Edit match error: %s", exc)
+        flash("Could not update match.", "error")
+
+    return redirect("/history")
 
 
 @app.route("/api/preview_match", methods=["POST"])
 def api_preview_match():
     """Preview match participants without simulating ranking changes."""
     data = request.get_json(silent=True) or {}
-    print(
-        "BACKEND DEBUG: Received request to /api/preview_match with body:",
+    logger.debug(
+        "POST /api/preview_match body=%s user_id=%s",
         data,
-        "current user_id:",
         session.get("user_id"),
     )
 
@@ -1269,8 +1557,8 @@ def api_preview_match():
         if player_one_id == player_two_id:
             return jsonify({"error": "Players must be different"}), 400
 
-        p1_rows = db.execute("SELECT * FROM ChessAdminApp_player WHERE id = ?", player_one_id)
-        p2_rows = db.execute("SELECT * FROM ChessAdminApp_player WHERE id = ?", player_two_id)
+        p1_rows = db.execute("SELECT * FROM ChessAdminApp_player WHERE id = ? AND COALESCE(is_active, 1) = 1", player_one_id)
+        p2_rows = db.execute("SELECT * FROM ChessAdminApp_player WHERE id = ? AND COALESCE(is_active, 1) = 1", player_two_id)
         if not p1_rows or not p2_rows:
             return jsonify({"error": "Player not found"}), 404
 
@@ -1301,14 +1589,14 @@ def api_preview_match():
             }
         )
     except Exception as exc:
-        print("Preview match error: {}".format(exc))
+        logger.error("Preview match error: %s", exc)
         return jsonify({"error": str(exc)}), 400
 
 
 @app.route("/history")
 def history():
     """Match history page."""
-    print("BACKEND DEBUG: Received request to /history with user_id:", session.get("user_id"))
+    logger.debug("GET /history user_id: %s", session.get("user_id"))
 
     matches = db.execute(
         """
@@ -1340,14 +1628,24 @@ def history():
             else:
                 match_row["result"] = "{} wins".format(match_row["player2_name"])
 
-    return render_template("history.html", matches=matches)
+    # Active players for Add Match modal dropdowns.
+    players = db.execute(
+        """
+        SELECT cp.id, cp.first_name, cp.last_name, cp.ranking
+        FROM ChessAdminApp_player cp
+        WHERE COALESCE(cp.is_active, 1) = 1
+        ORDER BY cp.ranking ASC
+        """
+    )
+
+    return render_template("history.html", matches=matches, users=players)
 
 
 @app.route("/test_db")
 @login_required
 def test_db():
     """Quick DB verification endpoint for migrated schema."""
-    print("BACKEND DEBUG: Received request to /test_db")
+    logger.debug("GET /test_db")
     try:
         players = db.execute("SELECT * FROM ChessAdminApp_player LIMIT 5")
         matches = db.execute("SELECT * FROM ChessAdminApp_match LIMIT 3")
@@ -1391,5 +1689,5 @@ def payload_too_large(error):
 # Local Development Entrypoint
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    print("Running on http://127.0.0.1:5000")
+    logger.info("Running on http://127.0.0.1:5000")
     app.run(debug=True, host="127.0.0.1", port=5000)
