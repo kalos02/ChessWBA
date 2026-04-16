@@ -1,170 +1,118 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
-{% block title %}Record Match - Chess Club{% endblock %}
+{#
+    ChessWBA match page (frontend)
+    - form to schedule or log a completed match
+#}
+
+{% block title %}Add Match - Chess Club{% endblock %}
 
 {% block content %}
+<style>
+    .match-form-card {
+        max-width: 620px;
+    }
+
+    #result-section {
+        display: none;
+    }
+</style>
 <div class="page-header">
-    <h1> Record a Match</h1>
-    <p>Log a match result and watch rankings update automatically</p>
+    <h1>Add a Match</h1>
+    <p>Schedule a match or log a completed result</p>
 </div>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Match Details</h2>
-        </div>
+<div class="summary-box" aria-label="match-summary">
+    <h3 class="summary-title">Total Matches Recorded</h3>
+    <p class="summary-text">{{ total_matches }}</p>
+</div>
 
-        <div class="hint-box">
-            <strong> Tip:</strong> Select two different players and a result. The ranking preview will show you exactly how ranks will change!
-        </div>
-
-        <form method="post" id="match-form">
-            <div class="form-group">
-                <label for="player1_id">First Player</label>
-                <span class="label-hint">The player on the white side</span>
-                <select id="player1_id" name="player1_id" required onchange="updatePreview()">
-                    <option value="">— Choose a player —</option>
-                    {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.rank }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="player2_id">Second Player</label>
-                <span class="label-hint">The player on the black side</span>
-                <select id="player2_id" name="player2_id" required onchange="updatePreview()">
-                    <option value="">— Choose a player —</option>
-                    {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.rank }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Who Won?</label>
-                <span class="label-hint">Select the match result</span>
-                <div class="result-buttons">
-                    <button type="button" class="result-btn" onclick="setResult('p1', this)">White Wins ♔</button>
-                    <button type="button" class="result-btn" onclick="setResult('draw', this)">Draw ♚</button>
-                    <button type="button" class="result-btn" onclick="setResult('p2', this)">Black Wins ♔</button>
-                </div>
-                <input type="hidden" id="result" name="result" required>
-            </div>
-
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Record This Match</button>
-        </form>
+<div class="card match-form-card">
+    <div class="card-header">
+        <h2 class="card-title">Match Details</h2>
     </div>
 
-    <div>
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">How Ranking Works</h2>
-            </div>
-            <div style="font-size: 0.9rem; line-height: 1.8; color: var(--text-dark);">
-                <p><strong style="color: var(--accent);">Smaller rank number = Better</strong></p>
-                <p>#1 is the #1 ranked player! </p>
-                <div class="divider"></div>
-                
-                <p><strong>📋 Fair Matching:</strong></p>
-                <p>Our ranking system rewards good performances and helps all skill levels play fairly.</p>
-                
-                <div class="divider"></div>
-                
-                <p><strong> Rewards:</strong></p>
-                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                    <li>Upsets earn you more points</li>
-                    <li>Draws help lower-ranked players</li>
-                    <li>Consistent wins = steady climbing</li>
-                </ul>
-            </div>
+    <form method="post" id="match-form">
+        <div class="form-group">
+            <label for="player1_id">Player 1</label>
+            <select id="player1_id" name="player1_id" required onchange="updateButtonLabels()">
+                <option value="">Choose a player</option>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.ranking }})</option>
+                {% endfor %}
+            </select>
         </div>
 
-        <div id="preview-box" class="preview-box hidden" style="margin-top: 2rem;">
-            <div class="preview-title"> Live Ranking Preview</div>
-            <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 1rem;">This shows how ranks will change when you record this match:</p>
-            <div class="preview-players">
-                <div class="preview-player">
-                    <div class="preview-player-name" id="p1-name">White Player</div>
-                    <div class="preview-ranks">
-                        <div class="preview-rank-item">
-                            <div class="preview-rank-label">Currently</div>
-                            <div class="preview-rank-value" id="p1-before">—</div>
-                        </div>
-                        <div class="preview-rank-item">
-                            <div class="preview-rank-label">After</div>
-                            <div class="preview-rank-value" id="p1-after">—</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="preview-player">
-                    <div class="preview-player-name" id="p2-name">Black Player</div>
-                    <div class="preview-ranks">
-                        <div class="preview-rank-item">
-                            <div class="preview-rank-label">Currently</div>
-                            <div class="preview-rank-value" id="p2-before">—</div>
-                        </div>
-                        <div class="preview-rank-item">
-                            <div class="preview-rank-label">After</div>
-                            <div class="preview-rank-value" id="p2-after">—</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="form-group">
+            <label for="player2_id">Player 2</label>
+            <select id="player2_id" name="player2_id" required onchange="updateButtonLabels()">
+                <option value="">Choose a player</option>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.ranking }})</option>
+                {% endfor %}
+            </select>
         </div>
-    </div>
+
+        <div class="form-group">
+            <label for="venue">Venue</label>
+            <input type="text" id="venue" name="venue" placeholder="e.g. Chess Club Hall, Room 3">
+        </div>
+
+        <div class="form-group">
+            <label for="scheduled_date">Scheduled Date</label>
+            <input type="date" id="scheduled_date" name="scheduled_date">
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" name="status" onchange="toggleResultSection()">
+                <option value="SCHEDULED">Pending</option>
+                <option value="PLAYING">Playing</option>
+                <option value="COMPLETED">Complete</option>
+                <option value="CANCELED">Canceled</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="result-section">
+            <label>Result</label>
+            <span class="label-hint">Select the match result</span>
+            <div class="result-buttons">
+                <button type="button" class="result-btn" id="btn-p1" onclick="setResult('p1', this)">Player 1 Wins</button>
+                <button type="button" class="result-btn" onclick="setResult('draw', this)">Draw</button>
+                <button type="button" class="result-btn" id="btn-p2" onclick="setResult('p2', this)">Player 2 Wins</button>
+            </div>
+            <input type="hidden" id="result" name="result">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block mt-1">Save</button>
+    </form>
 </div>
 
 <script>
-function setResult(result, button) {
-    document.getElementById('result').value = result;
-    
-    // Update button styling
-    document.querySelectorAll('.result-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    button.classList.add('active');
-    
-    updatePreview();
+function updateButtonLabels() {
+    const p1Sel = document.getElementById('player1_id');
+    const p2Sel = document.getElementById('player2_id');
+    const p1Text = p1Sel.selectedIndex > 0 ? p1Sel.options[p1Sel.selectedIndex].text.split(' (')[0] : 'Player 1';
+    const p2Text = p2Sel.selectedIndex > 0 ? p2Sel.options[p2Sel.selectedIndex].text.split(' (')[0] : 'Player 2';
+    document.getElementById('btn-p1').textContent = p1Text + ' Wins';
+    document.getElementById('btn-p2').textContent = p2Text + ' Wins';
 }
 
-async function updatePreview() {
-    const p1_id = document.getElementById('player1_id').value;
-    const p2_id = document.getElementById('player2_id').value;
-    const result = document.getElementById('result').value;
+function setResult(result, button) {
+    document.getElementById('result').value = result;
+    document.querySelectorAll('.result-btn').forEach(function(btn) { btn.classList.remove('active'); });
+    button.classList.add('active');
+}
 
-    if (!p1_id || !p2_id || !result) {
-        document.getElementById('preview-box').classList.add('hidden');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/preview_match', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                player1_id: parseInt(p1_id),
-                player2_id: parseInt(p2_id),
-                winner_id: result === 'p1' ? parseInt(p1_id) : (result === 'p2' ? parseInt(p2_id) : null)
-            })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            document.getElementById('p1-name').textContent = data.p1_name;
-            document.getElementById('p2-name').textContent = data.p2_name;
-            document.getElementById('p1-before').textContent = data.p1_rank_before;
-            document.getElementById('p1-after').textContent = data.p1_rank_after;
-            document.getElementById('p2-before').textContent = data.p2_rank_before;
-            document.getElementById('p2-after').textContent = data.p2_rank_after;
-
-            document.getElementById('preview-box').classList.remove('hidden');
-        }
-    } catch (error) {
-        console.error('Error:', error);
+function toggleResultSection() {
+    const status = document.getElementById('status').value;
+    const section = document.getElementById('result-section');
+    if (status === 'COMPLETE' || status === 'COMPLETED') {
+        section.style.display = 'block';
+    } else {
+        section.style.display = 'none';
+        document.getElementById('result').value = '';
+        document.querySelectorAll('.result-btn').forEach(function(btn) { btn.classList.remove('active'); });
     }
 }
 </script>

@@ -1,15 +1,20 @@
-{% extends "layout.html" %}
+{#
+    ChessWBA apology page (frontend)
+    - shared error display from backend apology() helper
+#}
+
+{% extends "base.html" %}
 
 {% block title %}Error - Chess Club{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 500px; text-align: center; margin-top: 4rem;">
+<div class="container narrow-center apology-wrap">
     <div class="card">
-        <div style="font-size: 4rem; margin-bottom: 1rem;">😕</div>
-        <h1 style="margin-bottom: 0.5rem; color: var(--accent);">Oops! Something Went Wrong</h1>
-        <p style="font-size: 1rem; margin-bottom: 2rem; color: var(--text-light);">{{ message }}</p>
-        <p style="font-size: 0.9rem; margin-bottom: 2rem; color: var(--text-light);">Don't worry, it happens to the best of us! Head back and try again.</p>
-        <a href="/" class="btn btn-primary">🏠 Back to Leaderboard</a>
+        <div class="error-hero-icon apology-icon">Error</div>
+        <h1 class="error-hero-title">Oops! Something Went Wrong</h1>
+        <p class="error-hero-body">{{ message }}</p>
+        <p class="error-hero-caption">Don't worry, it happens to the best of us! Head back and try again.</p>
+        <a href="/" class="btn btn-primary">Back to Leaderboard</a>
     </div>
 </div>
 {% endblock %}

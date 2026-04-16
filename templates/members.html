@@ -1,60 +1,135 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{#
+    ChessWBA members list page (frontend)
+    - shows all users with profile links
+#}
 
 {% block title %}Members - Chess Club{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/members.css') }}">
+<style>
+    .player-inactive { opacity: 0.5; }
+    .player-inactive .badge {
+        background: var(--border, #ccc);
+        color: var(--text-muted, #888);
+    }
+</style>
 <div class="page-header">
-    <h1> Community Members</h1>
-    <p>Meet {{ users|length }} amazing chess players</p>
+    <h1> Club Members</h1>
+    <p>Total members: {{ users|length }}</p>
 </div>
 
 <div class="table-container">
-    <div class="table-search">
-        <input type="text" id="search" placeholder="Search members by name or username...">
+    <div class="members-toolbar">
+        <div class="toolbar-left">
+            <input type="text" id="search" placeholder="Search by name...">
+            <button type="button" id="search-btn" class="btn btn-secondary">Search</button>
+        </div>
+        <button type="button" id="add-player-btn" class="btn btn-primary">Add Player</button>
     </div>
+
     <table>
         <thead>
             <tr>
-                <th style="width: 80px;">Rank</th>
+                <th class="col-80">Rank</th>
                 <th>Member</th>
-                <th style="width: 100px;">Games</th>
-                <th style="width: 100px;">Joined</th>
-                <th style="width: 150px;">Action</th>
+                <th class="col-120">Country</th>
+                <th class="col-120">City</th>
+                <th class="col-100">Status</th>
+                <th class="col-100">Points</th>
+                <th class="col-100">Win Ratio</th>
+                <th class="col-120 cell-date">Date of Birth</th>
+                <th class="col-120 cell-date">Date Joined</th>
+                <th class="col-150">Actions</th>
             </tr>
         </thead>
         <tbody id="table-body">
             {% for user in users %}
-            <tr class="table-row">
+            <tr
+                class="table-row{% if not user.is_active %} player-inactive{% endif %}"
+                data-id="{{ user.id }}"
+                data-first-name="{{ user.first_name }}"
+                data-last-name="{{ user.last_name }}"
+                data-email="{{ user.email if user.email else '' }}"
+                data-country="{{ user.country if user.country else '' }}"
+                data-city="{{ user.city if user.city else '' }}"
+                data-rank="{{ user.rank }}"
+                data-points="{{ user.points }}"
+                data-matches="{{ user.matches_played }}"
+                data-ratio="{{ user.win_ratio }}"
+                data-dob="{{ user.date_of_birth if user.date_of_birth else '' }}"
+                data-date-joined="{{ user.created_at[:10] if user.created_at else '' }}"
+                data-is-active="{{ user.is_active }}"
+            >
                 <td>
                     <span class="rank-badge {% if user.rank == 1 %}gold{% elif user.rank == 2 %}silver{% elif user.rank == 3 %}bronze{% endif %}">
                         <span>#{{ user.rank }}</span>
                     </span>
                 </td>
                 <td>
-                    <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="row-user">
                         <div class="avatar-circle">
-                            {% if user.avatar_filename %}
-                                <img src="{{ url_for('static', filename='uploads/' + user.avatar_filename) }}" alt="{{ user.first_name }}">
+                            {% if get_avatar_url(user.id) %}
+                                <img src="{{ get_avatar_url(user.id) }}" alt="{{ user.first_name }} {{ user.last_name }} avatar">
                             {% else %}
                                 {{ get_initials(user.first_name, user.last_name) }}
                             {% endif %}
                         </div>
                         <div>
-                            <strong>{{ user.first_name }} {{ user.last_name }}</strong>
-                            <div class="text-muted" style="font-size: 0.85rem;">@{{ user.username }}</div>
+                            <strong class="member-name-text">{{ user.first_name }} {{ user.last_name }}</strong>
+                            {% if not user.is_active %}<span class="badge member-status-badge">Inactive</span>{% endif %}
+                            <div class="text-muted user-handle">Club Player</div>
                         </div>
                     </div>
                 </td>
-                <td>{{ user.games_played }}</td>
-                <td class="text-muted" style="font-size: 0.9rem;">
+                <td class="text-muted">{{ user.country or '-' }}</td>
+                <td class="text-muted">{{ user.city or '-' }}</td>
+                <td>
+                    {% if user.is_active %}
+                        <span class="badge status-badge status-active">Active</span>
+                    {% else %}
+                        <span class="badge status-badge status-inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.points }}</td>
+                <td class="text-muted">{{ user.win_ratio }}%</td>
+                <td class="text-muted cell-date">
+                    {% if user.date_of_birth %}
+                        {{ user.date_of_birth[:10] }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="text-muted cell-date">
                     {% if user.created_at %}
                         {{ user.created_at[:10] }}
                     {% else %}
-                        —
+                        -
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/profile/{{ user.id }}" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem; font-size: 0.85rem;">View Profile</a>
+                    <div class="row-actions">
+                        <button type="button" class="btn btn-secondary btn-sm btn-compact view-player-btn">View</button>
+
+                        <button type="button" class="btn btn-secondary btn-sm btn-compact edit-player-btn">Edit</button>
+
+
+
+
+                                {# HTML -> JS -> Flask trace:
+                                    JS reads data-player-id on click, writes it to hidden input name="id",
+                                    then POST /togglePlayerStatus is handled by toggle_player_status() in app.py. #}
+
+                        {% if user.is_active %}
+                        <button type="button" class="btn btn-sm btn-compact btn-danger delete-player-btn"
+                                data-player-id="{{ user.id }}" data-is-active="1">Deactivate</button>
+                        {% else %}
+                        <button type="button" class="btn btn-sm btn-compact btn-primary delete-player-btn"
+                                data-player-id="{{ user.id }}" data-is-active="0">Activate</button>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -62,15 +137,161 @@
     </table>
 </div>
 
-<script>
-document.getElementById('search').addEventListener('keyup', function() {
-    const query = this.value.toLowerCase();
-    const rows = document.querySelectorAll('.table-row');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
-    });
-});
-</script>
+<div id="player-modal-backdrop" class="members-modal-backdrop" aria-hidden="true">
+    <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="player-modal-title">
+        <div class="members-modal-header">
+            <h3 id="player-modal-title" class="members-modal-title">Add Player</h3>
+            <button type="button" id="player-modal-close" class="members-modal-close" aria-label="Close">X</button>
+        </div>
+
+        {# Shared add/edit form route (set by JS):
+           Add mode -> POST /addPlayer (app.py add_player)
+           Edit mode -> POST /editPlayer (app.py edit_player) #}
+          <form id="player-modal-form" class="members-modal-form" method="POST" action="/addPlayer" enctype="multipart/form-data">
+            {# playerId trace:
+               JS sets this hidden id for Edit mode.
+               Backend uses id as the unique identifier (names can repeat). #}
+            <input type="hidden" id="player-id" name="id">
+
+            <div id="member-view-panel" class="member-view-panel" hidden>
+                <div class="member-view-layout">
+                    <section class="member-view-summary">
+                        <div id="member-view-avatar" class="avatar-circle member-view-avatar">--</div>
+                        <h4 id="member-view-name" class="member-view-name">Player Name</h4>
+                        <p id="member-view-role" class="member-view-role">Club Player</p>
+
+                        <div class="member-view-stat-grid">
+                            <div class="member-view-stat">
+                                <span class="member-view-stat-label">Rank</span>
+                                <strong id="member-view-rank" class="member-view-stat-value">#-</strong>
+                            </div>
+                            <div class="member-view-stat">
+                                <span class="member-view-stat-label">Points</span>
+                                <strong id="member-view-points" class="member-view-stat-value">0</strong>
+                            </div>
+                            <div class="member-view-stat">
+                                <span class="member-view-stat-label">Matches Played</span>
+                                <strong id="member-view-matches" class="member-view-stat-value">0</strong>
+                            </div>
+                            <div class="member-view-stat">
+                                <span class="member-view-stat-label">Win Ratio</span>
+                                <strong id="member-view-ratio" class="member-view-stat-value">0%</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="member-view-details-card">
+                        <h4 class="member-view-details-title">Player Details</h4>
+                        <p class="member-view-copy">A quick summary of this club member's information.</p>
+
+                        <div class="member-view-detail-grid">
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">Full Name</span>
+                                <strong id="member-view-full-name" class="member-view-detail-value">N/A</strong>
+                            </div>
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">Email</span>
+                                <strong id="member-view-email" class="member-view-detail-value">N/A</strong>
+                            </div>
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">Country</span>
+                                <strong id="member-view-country" class="member-view-detail-value">N/A</strong>
+                            </div>
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">City</span>
+                                <strong id="member-view-city" class="member-view-detail-value">N/A</strong>
+                            </div>
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">Status</span>
+                                <strong id="member-view-status" class="member-view-detail-value">N/A</strong>
+                            </div>
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">Date Joined</span>
+                                <strong id="member-view-date-joined" class="member-view-detail-value">N/A</strong>
+                            </div>
+                            <div class="member-view-detail-item">
+                                <span class="member-view-detail-key">Date of Birth</span>
+                                <strong id="member-view-date-of-birth" class="member-view-detail-value">N/A</strong>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="members-modal-body members-form-grid">
+                <div class="members-field">
+                    <label for="first-name">First Name</label>
+                    <input id="first-name" name="first_name" type="text" required>
+                </div>
+                <div class="members-field">
+                    <label for="last-name">Last Name</label>
+                    <input id="last-name" name="last_name" type="text" required>
+                </div>
+                <div class="members-field">
+                    <label for="ranking">Ranking</label>
+                    <input id="ranking" name="ranking" type="number" min="1" required>
+                </div>
+                <div class="members-field">
+                    <label for="points">Points</label>
+                    <input id="points" name="points" type="number" min="0" required>
+                </div>
+                <div class="members-field">
+                    <label for="country">Country</label>
+                    <input id="country" name="country" type="text">
+                </div>
+                <div class="members-field">
+                    <label for="city">City</label>
+                    <input id="city" name="city" type="text">
+                </div>
+                <div class="members-field full">
+                    <label for="date-of-birth">Date of Birth</label>
+                    <input id="date-of-birth" name="date_of_birth" type="date">
+                </div>
+                <div class="members-field full">
+                    <label for="date-joined">Date Joined</label>
+                    <input id="date-joined" name="date_joined" type="date">
+                </div>
+                <div class="members-field full">
+                    <label for="avatar">Profile Photo</label>
+                    <span class="label-hint">Select an image when editing a player profile.</span>
+                    <input id="avatar" name="avatar" type="file" accept=".jpg,.jpeg,.png,.gif">
+                </div>
+            </div>
+
+            <div class="members-modal-footer">
+                <button type="button" id="player-modal-cancel" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="delete-modal-backdrop" class="members-modal-backdrop" aria-hidden="true">
+    <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+        <div class="members-modal-header">
+            <h3 id="delete-modal-title" class="members-modal-title">Update Player Status</h3>
+        </div>
+
+        {# Delete form route mapping:
+           POST /deletePlayer (app.py delete_player)
+           members.js writes selected playerId into hidden input below #}
+        <form id="delete-modal-form" class="members-modal-form" method="POST" action="/togglePlayerStatus">
+            {# playerId trace:
+               JS copies button data-player-id into this field before submit.
+               Flask toggle_player_status() uses id to update one exact record. #}
+            <input type="hidden" id="delete-player-id" name="id">
+            <div class="members-modal-body">
+                <p id="delete-modal-message" class="text-muted members-delete-text">Are you sure you want to change this player's status?</p>
+                <p class="text-muted members-delete-note">This will toggle between Active and Inactive.</p>
+            </div>
+
+            <div class="members-modal-footer">
+                <button type="button" id="delete-modal-cancel" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/members.js') }}"></script>
 {% endblock %}

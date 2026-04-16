@@ -1,83 +1,679 @@
-{% extends "layout.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Match History - Chess Club{% endblock %}
+{#
+    ChessWBA matches page (frontend)
+    - shows all matches with venue, status, entry rankings, rank changes
+    - inline edit modal for venue, status, result
+#}
+
+{% block title %}Matches - Chess Club{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1> Match History</h1>
-    <p>All matches played in the Chess Club</p>
+<style>
+    .table-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem;
+        box-shadow: var(--shadow-soft);
+    }
+    .table-scroll { overflow-x: auto; }
+    .table-card table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 900px;
+    }
+    .table-card th,
+    .table-card td {
+        padding: 12px 12px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .table-card thead { background: var(--surface-soft); }
+    .table-card th {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+    .table-card td { font-size: 0.9rem; line-height: 1.3; }
+    .table-card tbody tr { transition: background-color 0.14s ease; }
+    .table-card tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+
+    .badge.warning {
+        background: rgba(200, 120, 0, 0.18);
+        color: #e09040;
+        border: 1px solid rgba(200, 120, 0, 0.28);
+    }
+
+    .action-group { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
+    .btn-sm {
+        padding: 3px 10px;
+        font-size: 0.77rem;
+        border-radius: 5px;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-muted);
+        transition: all 0.14s ease;
+    }
+    .btn-sm:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+    .btn-sm.btn-danger { color: #e05555; border-color: rgba(224,85,85,0.35); }
+    .btn-sm.btn-danger:hover { background: rgba(224,85,85,0.12); }
+
+    /* Modal (members-modal pattern) */
+    .members-modal-backdrop {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.55);
+        display: none; align-items: center; justify-content: center;
+        z-index: 1200; padding: 16px;
+        opacity: 0; transition: opacity 0.18s ease;
+    }
+    .members-modal-backdrop.is-open { opacity: 1; }
+    .members-modal {
+        width: min(520px, 100%);
+        background: var(--surface, #111827);
+        border: 1px solid var(--border, rgba(255,255,255,0.12));
+        border-radius: 12px;
+        box-shadow: 0 16px 38px rgba(0,0,0,0.35);
+        overflow: hidden;
+        transform: translateY(6px) scale(0.985);
+        transition: transform 0.18s ease;
+    }
+    .members-modal-backdrop.is-open .members-modal { transform: translateY(0) scale(1); }
+    .members-modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border, rgba(255,255,255,0.12));
+    }
+    .members-modal-title { margin: 0; font-size: 1.02rem; color: var(--text-primary, #f9fafb); }
+    .members-modal-close {
+        border: 1px solid var(--divider-strong, rgba(255,255,255,0.18));
+        background: transparent; color: var(--text-primary, #f9fafb);
+        border-radius: 6px; width: 30px; height: 30px; cursor: pointer;
+    }
+
+    #add-match-close,
+    #edit-match-close {
+        display: none;
+    }
+    .members-modal-body { padding: 14px 16px 16px; }
+    .members-modal-form { display: flex; flex-direction: column; gap: 14px; }
+    .members-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .members-field { display: flex; flex-direction: column; gap: 6px; }
+    .members-field.full { grid-column: span 2; }
+    .members-field label { color: var(--text-muted, #a1a1aa); font-size: 0.82rem; font-weight: 600; }
+    .members-field input,
+    .members-field select {
+        border: 1px solid var(--divider-strong, rgba(255,255,255,0.18));
+        background: var(--surface-soft, #0f172a);
+        color: var(--text-primary, #f9fafb);
+        border-radius: 8px; padding: 8px 10px; font: inherit;
+    }
+    .members-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 0 16px 16px; }
+    .members-modal-footer .btn { min-width: 96px; }
+
+    /* Result buttons */
+    .result-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .result-btn {
+        flex: 1; min-width: 100px;
+        padding: 8px 12px; font: inherit; font-size: 0.84rem;
+        border: 1px solid var(--divider-strong, rgba(255,255,255,0.18));
+        background: var(--surface-soft, #0f172a);
+        color: var(--text-primary, #f9fafb);
+        border-radius: 8px; cursor: pointer;
+        transition: background 0.14s, border-color 0.14s;
+    }
+    .result-btn:hover { background: rgba(255,255,255,0.07); }
+    .result-btn.active {
+        background: rgba(255,255,255,0.12);
+        border-color: var(--accent, #d4d4cf);
+        color: var(--accent-alt, #ffffff);
+    }
+
+    .page-header.matches-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .badge.empty {
+        opacity: 0.5;
+    }
+
+    .is-hidden {
+        display: none;
+    }
+</style>
+
+<div class="page-header matches-header">
+    <div>
+        <h1>Matches</h1>
+        <p>All matches in the Chess Club</p>
+        <p><strong>Total Matches Recorded:</strong> {{ total_matches }}</p>
+    </div>
+    <button type="button" id="new-match-btn" class="btn btn-primary">New Match</button>
 </div>
 
 {% if matches %}
-<div class="table-container">
+<article class="table-card">
+<div class="table-scroll">
     <table>
         <thead>
             <tr>
-                <th style="width: 120px;">Date</th>
+                <th>Date</th>
+                <th>Venue</th>
+                <th>Status</th>
                 <th>Player 1</th>
                 <th>Player 2</th>
                 <th>Result</th>
-                <th style="width: 150px;">P1 Rank Change</th>
-                <th style="width: 150px;">P2 Rank Change</th>
+                <th>Entry Rank P1</th>
+                <th>Entry Rank P2</th>
+                <th>P1 Rank Change</th>
+                <th>P2 Rank Change</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for match in matches %}
+            {% set status_upper = (match.status or 'PENDING')|upper %}
+            {% set cur_result = '' %}
+            {% if match.winner_id == match.player1_id %}{% set cur_result = 'p1' %}{% elif match.winner_id == match.player2_id %}{% set cur_result = 'p2' %}{% elif match.match_result and match.match_result|upper == 'DRAW' %}{% set cur_result = 'draw' %}{% endif %}
             <tr>
-                <td class="text-muted" style="font-size: 0.9rem;">{{ match.played_at[:10] }}</td>
+                <td class="text-muted">{{ match.scheduled_date[:10] if match.scheduled_date else '-' }}</td>
+                <td>{{ match.venue or '-' }}</td>
                 <td>
-                    <a href="/profile/{{ match.player1_id }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
-                        <div class="avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">
-                            {{ get_initials(match.player1_name.split()[0], match.player1_name.split()[1] if match.player1_name.split()|length > 1 else '') }}
-                        </div>
-                        <span style="color: var(--accent);">{{ match.player1_name }}</span>
-                    </a>
+                    {% if status_upper == 'COMPLETED' or status_upper == 'COMPLETE' %}
+                        <span class="badge success">{{ status_upper }}</span>
+                    {% elif status_upper == 'PLAYING' %}
+                        <span class="badge primary">{{ status_upper }}</span>
+                    {% elif status_upper == 'CANCELED' or status_upper == 'CANCELLED' %}
+                        <span class="badge warning">{{ status_upper }}</span>
+                    {% else %}
+                        <span class="badge primary">{{ status_upper }}</span>
+                    {% endif %}
                 </td>
                 <td>
-                    <a href="/profile/{{ match.player2_id }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
-                        <div class="avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">
-                            {{ get_initials(match.player2_name.split()[0], match.player2_name.split()[1] if match.player2_name.split()|length > 1 else '') }}
+                    {% set p1_parts = match.player1_name.split() %}
+                    {% if match.player1_exists %}
+                    <a href="/profile/{{ match.player1_id }}" class="player-link">
+                        <div class="avatar-circle avatar-xs">
+                            {% if get_avatar_url(match.player1_id) %}
+                                <img src="{{ get_avatar_url(match.player1_id) }}" alt="{{ match.player1_name }} avatar">
+                            {% else %}
+                                {{ get_initials(p1_parts[0] if p1_parts else 'P', p1_parts[1] if p1_parts|length > 1 else '') }}
+                            {% endif %}
                         </div>
-                        <span style="color: var(--accent);">{{ match.player2_name }}</span>
+                        <span>{{ match.player1_name }}</span>
                     </a>
+                    {% else %}
+                    <span class="player-link">
+                        <div class="avatar-circle avatar-xs">
+                            {{ get_initials(p1_parts[0] if p1_parts else 'P', p1_parts[1] if p1_parts|length > 1 else '') }}
+                        </div>
+                        <span>{{ match.player1_name }}</span>
+                    </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set p2_parts = match.player2_name.split() %}
+                    {% if match.player2_exists %}
+                    <a href="/profile/{{ match.player2_id }}" class="player-link">
+                        <div class="avatar-circle avatar-xs">
+                            {% if get_avatar_url(match.player2_id) %}
+                                <img src="{{ get_avatar_url(match.player2_id) }}" alt="{{ match.player2_name }} avatar">
+                            {% else %}
+                                {{ get_initials(p2_parts[0] if p2_parts else 'P', p2_parts[1] if p2_parts|length > 1 else '') }}
+                            {% endif %}
+                        </div>
+                        <span>{{ match.player2_name }}</span>
+                    </a>
+                    {% else %}
+                    <span class="player-link">
+                        <div class="avatar-circle avatar-xs">
+                            {{ get_initials(p2_parts[0] if p2_parts else 'P', p2_parts[1] if p2_parts|length > 1 else '') }}
+                        </div>
+                        <span>{{ match.player2_name }}</span>
+                    </span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if match.winner_id == match.player1_id %}
                         <span class="badge success">{{ match.player1_name }} won</span>
                     {% elif match.winner_id == match.player2_id %}
                         <span class="badge success">{{ match.player2_name }} won</span>
-                    {% else %}
+                    {% elif match.match_result and match.match_result|upper == 'DRAW' %}
                         <span class="badge primary">Draw</span>
+                    {% else %}
+                        <span class="badge empty">-</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% set p1_delta = match.p1_rank_before - match.p1_rank_after %}
-                    {% if p1_delta > 0 %}
-                        <span class="delta-pill positive">↑ #{{ match.p1_rank_before }} → #{{ match.p1_rank_after }}</span>
-                    {% elif p1_delta < 0 %}
-                        <span class="delta-pill negative">↓ #{{ match.p1_rank_before }} → #{{ match.p1_rank_after }}</span>
+                    {% if match.player_one_entry_ranking is not none %}
+                        <span class="delta-pill neutral">#{{ match.player_one_entry_ranking }}</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    {% if match.player_two_entry_ranking is not none %}
+                        <span class="delta-pill neutral">#{{ match.player_two_entry_ranking }}</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    {% if match.p1_rank_before is not none and match.p1_rank_after is not none %}
+                        {% set p1_delta = match.p1_rank_before - match.p1_rank_after %}
+                        {% if p1_delta > 0 %}
+                            <span class="delta-pill positive">+#{{ match.p1_rank_before }} â†’ #{{ match.p1_rank_after }}</span>
+                        {% elif p1_delta < 0 %}
+                            <span class="delta-pill negative">-#{{ match.p1_rank_before }} â†’ #{{ match.p1_rank_after }}</span>
+                        {% else %}
+                            <span class="delta-pill neutral">#{{ match.p1_rank_before }}</span>
+                        {% endif %}
                     {% else %}
-                        <span class="delta-pill neutral">— #{{ match.p1_rank_before }}</span>
+                        <span class="delta-pill neutral">-</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% set p2_delta = match.p2_rank_before - match.p2_rank_after %}
-                    {% if p2_delta > 0 %}
-                        <span class="delta-pill positive">↑ #{{ match.p2_rank_before }} → #{{ match.p2_rank_after }}</span>
-                    {% elif p2_delta < 0 %}
-                        <span class="delta-pill negative">↓ #{{ match.p2_rank_before }} → #{{ match.p2_rank_after }}</span>
+                    {% if match.p2_rank_before is not none and match.p2_rank_after is not none %}
+                        {% set p2_delta = match.p2_rank_before - match.p2_rank_after %}
+                        {% if p2_delta > 0 %}
+                            <span class="delta-pill positive">+#{{ match.p2_rank_before }} â†’ #{{ match.p2_rank_after }}</span>
+                        {% elif p2_delta < 0 %}
+                            <span class="delta-pill negative">-#{{ match.p2_rank_before }} â†’ #{{ match.p2_rank_after }}</span>
+                        {% else %}
+                            <span class="delta-pill neutral">#{{ match.p2_rank_before }}</span>
+                        {% endif %}
                     {% else %}
-                        <span class="delta-pill neutral">— #{{ match.p2_rank_before }}</span>
+                        <span class="delta-pill neutral">-</span>
                     {% endif %}
+                </td>
+                <td>
+                    <div class="action-group">
+                        <button
+                            type="button"
+                            class="btn-sm js-edit-match"
+                            data-match-id="{{ match.id }}"
+                            data-player1-id="{{ match.player1_id }}"
+                            data-player2-id="{{ match.player2_id }}"
+                            data-venue="{{ match.venue or '' }}"
+                            data-scheduled-date="{{ match.scheduled_date[:10] if match.scheduled_date else '' }}"
+                            data-status="{{ match.status or 'PENDING' }}"
+                            data-result="{{ cur_result }}"
+                            data-player1-name="{{ match.player1_name or '' }}"
+                            data-player2-name="{{ match.player2_name or '' }}"
+                        >Edit</button>
+                        <button
+                            type="button"
+                            class="btn-sm btn-danger js-delete-match"
+                            data-match-id="{{ match.id }}"
+                            data-match-label="{{ match.player1_name }} vs {{ match.player2_name }}"
+                        >Delete</button>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+</article>
 {% else %}
 <div class="card">
-    <p class="text-center text-muted" style="padding: 2rem;">No matches have been played yet. <a href="/match">Record the first match</a>!</p>
+    <p class="text-center text-muted empty-state">No matches yet. Click <strong>New Match</strong> to add one.</p>
 </div>
 {% endif %}
+
+<!-- Add Match Modal -->
+<div id="add-match-backdrop" class="members-modal-backdrop" aria-hidden="true">
+    <div class="members-modal">
+        <div class="members-modal-header">
+            <h2 class="members-modal-title">Add Match</h2>
+            <button type="button" class="members-modal-close" id="add-match-close">&times;</button>
+        </div>
+        <form method="post" action="/match" class="members-modal-form">
+            <div class="members-modal-body">
+                <div class="members-form-grid">
+                    <div class="members-field full">
+                        <label for="add-player1">Player 1</label>
+                        <select id="add-player1" name="player1_id" required>
+                            <option value="">Choose a player</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.ranking }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="members-field full">
+                        <label for="add-player2">Player 2</label>
+                        <select id="add-player2" name="player2_id" required>
+                            <option value="">Choose a player</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.ranking }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="members-field">
+                        <label for="add-venue">Venue</label>
+                        <input type="text" id="add-venue" name="venue" placeholder="e.g. Chess Club Hall">
+                    </div>
+                    <div class="members-field">
+                        <label for="add-date">Scheduled Date</label>
+                        <input type="date" id="add-date" name="scheduled_date">
+                    </div>
+                    <div class="members-field full">
+                        <label for="add-status">Status</label>
+                        <select id="add-status" name="status">
+                            <option value="SCHEDULED">Pending</option>
+                            <option value="PLAYING">Playing</option>
+                            <option value="COMPLETED">Complete</option>
+                            <option value="CANCELED">Canceled</option>
+                        </select>
+                    </div>
+                    <div class="members-field full is-hidden" id="add-result-group">
+                        <label>Result</label>
+                        <div class="result-buttons">
+                            <button type="button" class="result-btn" id="add-btn-p1" data-result="p1">Player 1 Wins</button>
+                            <button type="button" class="result-btn" data-result="draw">Draw</button>
+                            <button type="button" class="result-btn" id="add-btn-p2" data-result="p2">Player 2 Wins</button>
+                        </div>
+                        <input type="hidden" id="add-result" name="result">
+                    </div>
+                </div>
+            </div>
+            <div class="members-modal-footer">
+                <button type="button" class="btn btn-secondary" id="add-match-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Match Modal -->
+<div id="edit-match-backdrop" class="members-modal-backdrop" aria-hidden="true">
+    <div class="members-modal">
+        <div class="members-modal-header">
+            <h2 class="members-modal-title">Edit Match</h2>
+            <button type="button" class="members-modal-close" id="edit-match-close">&times;</button>
+        </div>
+        <form method="post" action="/editMatch" class="members-modal-form">
+            <input type="hidden" id="edit-match-id" name="match_id">
+            <div class="members-modal-body">
+                <div class="members-form-grid">
+                    <div class="members-field full">
+                        <label for="edit-player1">Player 1</label>
+                        <select id="edit-player1" name="player1_id">
+                            <option value="">Choose a player</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.ranking }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="members-field full">
+                        <label for="edit-player2">Player 2</label>
+                        <select id="edit-player2" name="player2_id">
+                            <option value="">Choose a player</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} (Rank #{{ user.ranking }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="members-field">
+                        <label for="edit-venue">Venue</label>
+                        <input type="text" id="edit-venue" name="venue" placeholder="e.g. Chess Club Hall">
+                    </div>
+                    <div class="members-field">
+                        <label for="edit-scheduled-date">Scheduled Date</label>
+                        <input type="date" id="edit-scheduled-date" name="scheduled_date">
+                    </div>
+                    <div class="members-field full">
+                        <label for="edit-status">Status</label>
+                        <select id="edit-status" name="status">
+                            <option value="SCHEDULED">Pending</option>
+                            <option value="PLAYING">Playing</option>
+                            <option value="COMPLETED">Complete</option>
+                            <option value="CANCELED">Canceled</option>
+                        </select>
+                    </div>
+                    <div class="members-field full is-hidden" id="edit-result-group">
+                        <label>Result</label>
+                        <div class="result-buttons">
+                            <button type="button" class="result-btn" id="edit-btn-p1" data-result="p1">Player 1 Wins</button>
+                            <button type="button" class="result-btn" data-result="draw">Draw</button>
+                            <button type="button" class="result-btn" id="edit-btn-p2" data-result="p2">Player 2 Wins</button>
+                        </div>
+                        <input type="hidden" id="edit-result" name="result">
+                    </div>
+                </div>
+            </div>
+            <div class="members-modal-footer">
+                <button type="button" class="btn btn-secondary" id="edit-match-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="delete-match-backdrop" class="members-modal-backdrop" aria-hidden="true">
+    <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="delete-match-title">
+        <div class="members-modal-header">
+            <h3 id="delete-match-title" class="members-modal-title">Delete Match</h3>
+            <button type="button" id="delete-match-close" class="members-modal-close" aria-label="Close">X</button>
+        </div>
+        <form id="delete-match-form" class="members-modal-form" method="POST" action="/deleteMatch">
+            <input type="hidden" id="delete-match-id" name="match_id">
+            <div class="members-modal-body">
+                <p id="delete-match-text" class="text-muted members-delete-text">Are you sure you want to delete this match? This action cannot be undone.</p>
+            </div>
+            <div class="members-modal-footer">
+                <button type="button" id="delete-match-cancel" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    /* ---- Shared modal helpers ---- */
+    function showModal(backdrop) {
+        backdrop.style.display = 'flex';
+        backdrop.classList.add('is-open');
+        backdrop.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+    function hideModal(backdrop) {
+        backdrop.classList.remove('is-open');
+        backdrop.style.display = 'none';
+        backdrop.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+    function bindClose(backdrop, closeBtn, cancelBtn, options) {
+        var config = options || {};
+        var enableCloseButton = config.enableCloseButton !== false;
+        var enableBackdropClose = config.enableBackdropClose !== false;
+
+        if (closeBtn && enableCloseButton) {
+            closeBtn.addEventListener('click', function () { hideModal(backdrop); });
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function () { hideModal(backdrop); });
+        }
+        if (enableBackdropClose) {
+            backdrop.addEventListener('click', function (e) {
+                if (e.target === backdrop) hideModal(backdrop);
+            });
+        }
+    }
+
+    /* ---- Result button helper ---- */
+    function bindResultButtons(container, hiddenInput) {
+        container.querySelectorAll('.result-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                container.querySelectorAll('.result-btn').forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                hiddenInput.value = btn.dataset.result;
+            });
+        });
+    }
+
+    /* ---- Toggle result visibility based on status ---- */
+    function bindStatusToggle(statusSelect, resultGroup, hiddenResult) {
+        function toggle() {
+            if (statusSelect.value === 'COMPLETED' || statusSelect.value === 'COMPLETE') {
+                resultGroup.classList.remove('is-hidden');
+            } else {
+                resultGroup.classList.add('is-hidden');
+                hiddenResult.value = '';
+                resultGroup.querySelectorAll('.result-btn').forEach(function (b) { b.classList.remove('active'); });
+            }
+        }
+        statusSelect.addEventListener('change', toggle);
+        return toggle;
+    }
+
+    /* ==== ADD MATCH MODAL ==== */
+    var addBackdrop = document.getElementById('add-match-backdrop');
+    var addCloseBtn = document.getElementById('add-match-close');
+    var addCancelBtn = document.getElementById('add-match-cancel');
+    var addStatusSelect = document.getElementById('add-status');
+    var addResultGroup = document.getElementById('add-result-group');
+    var addResultInput = document.getElementById('add-result');
+    var addP1Select = document.getElementById('add-player1');
+    var addP2Select = document.getElementById('add-player2');
+    var addBtnP1 = document.getElementById('add-btn-p1');
+    var addBtnP2 = document.getElementById('add-btn-p2');
+
+    bindClose(addBackdrop, addCloseBtn, addCancelBtn, {
+        enableCloseButton: false,
+        enableBackdropClose: false
+    });
+    bindResultButtons(addResultGroup, addResultInput);
+    bindStatusToggle(addStatusSelect, addResultGroup, addResultInput);
+
+    // Update button labels with player names.
+    function updateAddPlayerLabels() {
+        var p1Text = addP1Select.selectedIndex > 0 ? addP1Select.options[addP1Select.selectedIndex].text.split(' (')[0] : 'Player 1';
+        var p2Text = addP2Select.selectedIndex > 0 ? addP2Select.options[addP2Select.selectedIndex].text.split(' (')[0] : 'Player 2';
+        addBtnP1.textContent = p1Text + ' Wins';
+        addBtnP2.textContent = p2Text + ' Wins';
+    }
+    addP1Select.addEventListener('change', updateAddPlayerLabels);
+    addP2Select.addEventListener('change', updateAddPlayerLabels);
+
+    // Open Add Match modal.
+    var newMatchBtn = document.getElementById('new-match-btn');
+    if (newMatchBtn) {
+        newMatchBtn.addEventListener('click', function () {
+            addP1Select.value = '';
+            addP2Select.value = '';
+            document.getElementById('add-venue').value = '';
+            document.getElementById('add-date').value = '';
+            addStatusSelect.value = 'SCHEDULED';
+            addResultInput.value = '';
+            addResultGroup.classList.add('is-hidden');
+            addResultGroup.querySelectorAll('.result-btn').forEach(function (b) { b.classList.remove('active'); });
+            updateAddPlayerLabels();
+            showModal(addBackdrop);
+        });
+    }
+
+    /* ==== EDIT MATCH MODAL ==== */
+    var editBackdrop = document.getElementById('edit-match-backdrop');
+    var editCloseBtn = document.getElementById('edit-match-close');
+    var editCancelBtn = document.getElementById('edit-match-cancel');
+    var editP1Select = document.getElementById('edit-player1');
+    var editP2Select = document.getElementById('edit-player2');
+    var editStatusSelect = document.getElementById('edit-status');
+    var editResultGroup = document.getElementById('edit-result-group');
+    var editResultInput = document.getElementById('edit-result');
+    var editBtnP1 = document.getElementById('edit-btn-p1');
+    var editBtnP2 = document.getElementById('edit-btn-p2');
+
+    bindClose(editBackdrop, editCloseBtn, editCancelBtn, {
+        enableCloseButton: false,
+        enableBackdropClose: false
+    });
+    bindResultButtons(editResultGroup, editResultInput);
+    var toggleEditResult = bindStatusToggle(editStatusSelect, editResultGroup, editResultInput);
+
+    function updateEditPlayerLabels(fallbackP1, fallbackP2) {
+        var p1Text = editP1Select && editP1Select.selectedIndex > 0
+            ? editP1Select.options[editP1Select.selectedIndex].text.split(' (')[0]
+            : (fallbackP1 || 'Player 1');
+        var p2Text = editP2Select && editP2Select.selectedIndex > 0
+            ? editP2Select.options[editP2Select.selectedIndex].text.split(' (')[0]
+            : (fallbackP2 || 'Player 2');
+        editBtnP1.textContent = p1Text + ' Wins';
+        editBtnP2.textContent = p2Text + ' Wins';
+    }
+
+    if (editP1Select) editP1Select.addEventListener('change', function () { updateEditPlayerLabels(); });
+    if (editP2Select) editP2Select.addEventListener('change', function () { updateEditPlayerLabels(); });
+
+    document.querySelectorAll('.js-edit-match').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var matchId = btn.dataset.matchId || '';
+            var p1Id = btn.dataset.player1Id || '';
+            var p2Id = btn.dataset.player2Id || '';
+            var venue = btn.dataset.venue || '';
+            var scheduledDate = btn.dataset.scheduledDate || '';
+            var status = btn.dataset.status || 'SCHEDULED';
+            var result = btn.dataset.result || '';
+            var p1Name = btn.dataset.player1Name || '';
+            var p2Name = btn.dataset.player2Name || '';
+
+            document.getElementById('edit-match-id').value = matchId;
+            if (editP1Select) editP1Select.value = p1Id;
+            if (editP2Select) editP2Select.value = p2Id;
+            document.getElementById('edit-venue').value = venue;
+            document.getElementById('edit-scheduled-date').value = scheduledDate;
+
+            var statusUpper = status.toUpperCase();
+            if (statusUpper === 'PENDING') statusUpper = 'SCHEDULED';
+            if (statusUpper === 'COMPLETE') statusUpper = 'COMPLETED';
+            if (statusUpper === 'CANCELLED') statusUpper = 'CANCELED';
+            editStatusSelect.value = statusUpper;
+
+            updateEditPlayerLabels(p1Name, p2Name);
+
+            editResultInput.value = result;
+            editResultGroup.querySelectorAll('.result-btn').forEach(function (button) { button.classList.remove('active'); });
+            if (result === 'p1') editBtnP1.classList.add('active');
+            else if (result === 'draw') editResultGroup.querySelectorAll('.result-btn')[1].classList.add('active');
+            else if (result === 'p2') editBtnP2.classList.add('active');
+
+            toggleEditResult();
+            showModal(editBackdrop);
+        });
+    });
+
+    /* ==== DELETE MATCH MODAL ==== */
+    var deleteBackdrop = document.getElementById('delete-match-backdrop');
+    var deleteCloseBtn = document.getElementById('delete-match-close');
+    var deleteCancelBtn = document.getElementById('delete-match-cancel');
+    var deleteForm = document.getElementById('delete-match-form');
+    var deleteIdInput = document.getElementById('delete-match-id');
+    var deleteText = document.getElementById('delete-match-text');
+
+    bindClose(deleteBackdrop, deleteCloseBtn, deleteCancelBtn);
+
+    document.querySelectorAll('.js-delete-match').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            deleteIdInput.value = btn.dataset.matchId || '';
+            var label = btn.dataset.matchLabel || 'this match';
+            deleteText.textContent = 'Are you sure you want to delete ' + label + '? This action cannot be undone.';
+            showModal(deleteBackdrop);
+        });
+    });
+
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function () {
+            hideModal(deleteBackdrop);
+        });
+    }
+
+    updateEditPlayerLabels();
+})();
+</script>
 {% endblock %}

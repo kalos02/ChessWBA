@@ -1,23 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - Page Not Found</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <main style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
-        <div class="container" style="max-width: 500px; text-align: center;">
+{% extends "base.html" %}
+
+{% block title %}404 - Page Not Found{% endblock %}
+
+{% block content %}
+    <main class="center-screen-main">
+        <div class="container narrow-center">
             <div class="card">
-                <div style="font-size: 5rem; margin-bottom: 1rem;">♟️</div>
-                <h1 style="margin-bottom: 0.5rem; color: var(--accent);">404 - Lost in the Game</h1>
-                <p style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-light);">We couldn't find the page you're looking for.</p>
-                <p style="font-size: 0.9rem; margin-bottom: 2rem; color: var(--text-light);">Maybe it's hiding on the other side of the chessboard?</p>
-                <a href="/" class="btn btn-primary">🏠 Return to Leaderboard</a>
+                <div class="error-hero-icon">404</div>
+                <h1 class="error-hero-title">404 - Lost in the Game</h1>
+                <p class="error-hero-body">We couldn't find the page you're looking for.</p>
+                <p class="error-hero-caption">Maybe it's hiding on the other side of the chessboard?</p>
+                <a href="/" class="btn btn-primary">Return to Leaderboard</a>
             </div>
         </div>
     </main>
-</body>
-</html>
+{% endblock %}

@@ -1,13 +1,17 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{#
+    Reserved for future authentication feature (not required for current project)
+#}
 
 {% block title %}Login - Chess Club{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 450px; margin-top: 3rem;">
+<div class="container auth-container auth-login">
     <div class="card">
         <div class="card-header">
-            <h1 class="card-title">♚ Welcome Back</h1>
-            <p style="color: var(--text-light); font-size: 0.95rem; margin: 0.5rem 0 0 0;">Sign in to your account to continue playing</p>
+            <h1 class="card-title">Member Access</h1>
+            <p class="auth-subtitle">Open the member workspace</p>
         </div>
 
         <form method="post">
@@ -21,12 +25,8 @@
                 <input type="password" id="password" name="password" placeholder="Enter your password" required>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Sign In to Chess Club</button>
+            <button type="submit" class="btn btn-primary btn-block mt-1">Continue</button>
         </form>
-
-        <div class="divider"></div>
-
-        <p class="text-center" style="color: var(--text-light);">New to Chess Club? <a href="/register" style="color: var(--accent); font-weight: 600;">Create an account</a></p>
     </div>
 </div>
 {% endblock %}
