@@ -11,9 +11,12 @@
 <style>
     .profile-shell {
         display: grid;
-        grid-template-columns: 320px 1fr;
+        grid-template-columns: minmax(260px, 320px) minmax(320px, 560px);
+        justify-content: center;
+        align-items: start;
         gap: 16px;
-        margin-top: 12px;
+        max-width: 980px;
+        margin: 12px auto 0;
     }
 
     .profile-card {
@@ -22,6 +25,7 @@
         border-radius: var(--radius);
         padding: 1.1rem;
         box-shadow: var(--shadow-soft);
+        height: 100%;
     }
 
     .profile-avatar-lg {
@@ -71,18 +75,33 @@
     .profile-details {
         margin-top: 12px;
         display: grid;
-        gap: 8px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
 
     .profile-detail-row {
-        display: grid;
-        grid-template-columns: 130px 1fr;
-        gap: 8px;
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.8rem 0.9rem;
+        background: var(--surface-soft);
+        min-height: 82px;
     }
 
     .profile-detail-key {
         color: var(--text-secondary);
         font-weight: 600;
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }
+
+    .profile-detail-value {
+        color: var(--text-primary);
+        font-weight: 600;
+        line-height: 1.35;
+        word-break: break-word;
     }
 
     .profile-actions {
@@ -90,6 +109,7 @@
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+        justify-content: center;
     }
 
     .player-link {
@@ -108,7 +128,8 @@
     }
 
     .matches-card {
-        margin-top: 16px;
+        max-width: 980px;
+        margin: 16px auto 0;
     }
 
     .matches-scroll {
@@ -152,11 +173,11 @@
     @media (max-width: 960px) {
         .profile-shell {
             grid-template-columns: 1fr;
+            max-width: 680px;
         }
 
-        .profile-detail-row {
+        .profile-details {
             grid-template-columns: 1fr;
-            gap: 2px;
         }
     }
 </style>
@@ -206,22 +227,23 @@
 
     <article class="profile-card">
         <h2 class="card-title">Player Details</h2>
+        <p class="profile-subtle">A quick summary of this club member's information.</p>
         <div class="profile-details">
             <div class="profile-detail-row">
                 <div class="profile-detail-key">Full Name</div>
-                <div>{{ user.first_name }} {{ user.last_name }}</div>
+                <div class="profile-detail-value">{{ user.first_name }} {{ user.last_name }}</div>
             </div>
             <div class="profile-detail-row">
                 <div class="profile-detail-key">Email</div>
-                <div>{{ user.email or 'N/A' }}</div>
+                <div class="profile-detail-value">{{ user.email or 'N/A' }}</div>
             </div>
             <div class="profile-detail-row">
                 <div class="profile-detail-key">Date Joined</div>
-                <div>{% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}N/A{% endif %}</div>
+                <div class="profile-detail-value">{% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}N/A{% endif %}</div>
             </div>
             <div class="profile-detail-row">
                 <div class="profile-detail-key">Date of Birth</div>
-                <div>{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth and user.date_of_birth.strftime is defined else (user.date_of_birth.split(' ')[0] if user.date_of_birth else 'N/A') }}</div>
+                <div class="profile-detail-value">{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth and user.date_of_birth.strftime is defined else (user.date_of_birth.split(' ')[0] if user.date_of_birth else 'N/A') }}</div>
             </div>
         </div>
     </article>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # This project was developed with assistance from AI tools (ChatGPT and GitHub Copilot) for guidance and optimization. All logic and understanding were implemented and reviewed by the author.
 # Recommended: Python 3.x and install requirements.txt
-# Run with Python 3.14 directly if dependencies are installed globally: python3.14 app.py
+# Run with Python 3.13.11 directly if dependencies are installed globally: py -3.13 app.py
 """
 ChessWBA Flask app (backend)
 
@@ -94,7 +94,10 @@ app.config["AUTH_PHASE_ENABLED"] = os.getenv("CHESS_AUTH_PHASE_ENABLED", "false"
     "yes",
     "on",
 }
-app.config["DB_PATH"] = os.getenv("CHESS_DB_PATH", r"E:\Skaak\ChessAdmin.sqlite3")
+app.config["DB_PATH"] = os.getenv(
+    "CHESS_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "..", "ChessAdmin.sqlite3"),
+)
 
 # Database connection.
 db = Database(app.config["DB_PATH"])
@@ -284,6 +287,7 @@ def get_player_form_data(form_data):
     return {
         "first_name": form_data.get("first_name", "").strip(),
         "last_name": form_data.get("last_name", "").strip(),
+        "country": form_data.get("country", "").strip() or None,
         "city": form_data.get("city", "").strip() or None,
         "ranking_raw": form_data.get("ranking", "").strip(),
         "points_raw": form_data.get("points", "").strip(),
@@ -746,10 +750,27 @@ def members():
 
     users = db.execute(
         """
+        WITH match_stats AS (
+            SELECT
+                player_id,
+                COUNT(*) AS matches_played,
+                SUM(CASE WHEN won = 1 THEN 1 ELSE 0 END) AS wins
+            FROM (
+                SELECT m.player_one_id AS player_id,
+                       CASE WHEN m.winner_id = m.player_one_id THEN 1 ELSE 0 END AS won
+                FROM ChessAdminApp_match m
+                UNION ALL
+                SELECT m.player_two_id AS player_id,
+                       CASE WHEN m.winner_id = m.player_two_id THEN 1 ELSE 0 END AS won
+                FROM ChessAdminApp_match m
+            ) x
+            GROUP BY player_id
+        )
         SELECT
             cp.id,
             cp.first_name,
             cp.last_name,
+            cp.country,
             cp.city,
             cp.ranking AS rank,
             cp.points,
@@ -757,13 +778,18 @@ def members():
             cp.is_active,
             au.email,
             au.username,
+            COALESCE(ms.matches_played, 0) AS matches_played,
+            CASE
+                WHEN COALESCE(ms.matches_played, 0) = 0 THEN 0
+                ELSE ROUND((COALESCE(ms.wins, 0) * 100.0) / ms.matches_played, 1)
+            END AS win_ratio,
             COALESCE(au.date_joined, cp.date_joined) AS created_at
         FROM ChessAdminApp_player cp
         LEFT JOIN auth_user au ON cp.id = au.id
+        LEFT JOIN match_stats ms ON ms.player_id = cp.id
         ORDER BY cp.ranking ASC
         """
     )
-
     return render_template("members.html", users=users, current_user_id=session.get("user_id"))
 
 
@@ -777,6 +803,7 @@ def add_player():
     player_form_data = get_player_form_data(request.form)
     first_name = player_form_data["first_name"]
     last_name = player_form_data["last_name"]
+    country = player_form_data["country"]
     city = player_form_data["city"]
     ranking_raw = player_form_data["ranking_raw"]
     points_raw = player_form_data["points_raw"]
@@ -816,11 +843,12 @@ def add_player():
         # Step 4: Insert player row in DB.
         db.execute(
             """
-            INSERT INTO ChessAdminApp_player (first_name, last_name, city, ranking, points, date_of_birth, date_joined)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ChessAdminApp_player (first_name, last_name, country, city, ranking, points, date_of_birth, date_joined)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             first_name,
             last_name,
+            country,
             city,
             safe_rank,
             points,
@@ -849,6 +877,7 @@ def edit_player():
     player_form_data = get_player_form_data(request.form)
     first_name = player_form_data["first_name"]
     last_name = player_form_data["last_name"]
+    country = player_form_data["country"]
     city = player_form_data["city"]
     ranking_raw = player_form_data["ranking_raw"]
     points_raw = player_form_data["points_raw"]
@@ -893,11 +922,12 @@ def edit_player():
         db.execute(
             """
             UPDATE ChessAdminApp_player
-            SET first_name = ?, last_name = ?, city = ?, ranking = ?, points = ?, date_of_birth = ?, date_joined = ?
+            SET first_name = ?, last_name = ?, country = ?, city = ?, ranking = ?, points = ?, date_of_birth = ?, date_joined = ?
             WHERE id = ?
             """,
             first_name,
             last_name,
+            country,
             city,
             safe_rank,
             points,
@@ -1043,6 +1073,27 @@ def profile(user_id):
     user = user_rows[0]
     user["created_at"] = normalize_datetime(user.get("created_at"))
 
+    stat_rows = db.execute(
+        """
+        SELECT
+            COUNT(*) AS matches_played,
+            SUM(CASE WHEN winner_id = ? THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN winner_id IS NULL OR LOWER(COALESCE(match_result, '')) = 'draw' THEN 1 ELSE 0 END) AS draws,
+            SUM(CASE WHEN winner_id IS NOT NULL AND winner_id != ? THEN 1 ELSE 0 END) AS losses
+        FROM ChessAdminApp_match
+        WHERE player_one_id = ? OR player_two_id = ?
+        """,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+    ) or []
+
+    stats = stat_rows[0] if stat_rows else {}
+    wins = int(stats.get("wins") or 0)
+    draws = int(stats.get("draws") or 0)
+    losses = int(stats.get("losses") or 0)
+
     # Recent matches for this player.
     matches = db.execute(
         """
@@ -1073,23 +1124,6 @@ def profile(user_id):
         user_id,
         user_id,
     )
-
-    wins = 0
-    draws = 0
-    losses = 0
-
-    if matches:
-        # Derive simple W/D/L summary from stored match result fields.
-        for match_row in matches:
-            match_result = (match_row.get("match_result") or "").lower()
-            winner_id = match_row.get("winner_id")
-
-            if winner_id is None or match_result == "draw":
-                draws += 1
-            elif winner_id == user_id:
-                wins += 1
-            else:
-                losses += 1
 
     current_user_id = session.get("user_id")
     is_own_profile = current_user_id is not None and user_id == current_user_id
@@ -1234,7 +1268,9 @@ def match():
             ORDER BY cp.ranking ASC
             """
         )
-        return render_template("match.html", users=players)
+        total_match_rows = db.execute("SELECT COUNT(*) AS count FROM ChessAdminApp_match")
+        total_matches = int(total_match_rows[0]["count"]) if total_match_rows else 0
+        return render_template("match.html", users=players, total_matches=total_matches)
 
     try:
         player_one_id = int(request.form.get("player1_id", 0))
@@ -1604,19 +1640,29 @@ def history():
             m.*,
             m.scheduled_date AS played_at,
             m.player_one_entry_ranking AS p1_rank_before,
-            (m.player_one_entry_ranking + m.player_one_ranking_change) AS p1_rank_after,
+            CASE
+                WHEN m.player_one_entry_ranking IS NOT NULL AND m.player_one_ranking_change IS NOT NULL
+                THEN (m.player_one_entry_ranking + m.player_one_ranking_change)
+                ELSE NULL
+            END AS p1_rank_after,
             m.player_two_entry_ranking AS p2_rank_before,
-            (m.player_two_entry_ranking + m.player_two_ranking_change) AS p2_rank_after,
-            cp1.first_name || ' ' || cp1.last_name AS player1_name,
-            cp2.first_name || ' ' || cp2.last_name AS player2_name,
-            cp1.id AS player1_id,
-            cp2.id AS player2_id
+            CASE
+                WHEN m.player_two_entry_ranking IS NOT NULL AND m.player_two_ranking_change IS NOT NULL
+                THEN (m.player_two_entry_ranking + m.player_two_ranking_change)
+                ELSE NULL
+            END AS p2_rank_after,
+            COALESCE(NULLIF(TRIM(COALESCE(cp1.first_name, '') || ' ' || COALESCE(cp1.last_name, '')), ''), 'Player #' || m.player_one_id) AS player1_name,
+            COALESCE(NULLIF(TRIM(COALESCE(cp2.first_name, '') || ' ' || COALESCE(cp2.last_name, '')), ''), 'Player #' || m.player_two_id) AS player2_name,
+            m.player_one_id AS player1_id,
+            m.player_two_id AS player2_id,
+            CASE WHEN cp1.id IS NOT NULL THEN 1 ELSE 0 END AS player1_exists,
+            CASE WHEN cp2.id IS NOT NULL THEN 1 ELSE 0 END AS player2_exists
         FROM ChessAdminApp_match m
-        JOIN ChessAdminApp_player cp1 ON m.player_one_id = cp1.id
-        JOIN ChessAdminApp_player cp2 ON m.player_two_id = cp2.id
-        ORDER BY m.scheduled_date DESC
+        LEFT JOIN ChessAdminApp_player cp1 ON m.player_one_id = cp1.id
+        LEFT JOIN ChessAdminApp_player cp2 ON m.player_two_id = cp2.id
+        ORDER BY COALESCE(m.scheduled_date, '') DESC, m.id DESC
         """
-    )
+    ) or []
 
     if matches:
         # Build user-friendly result text used by history template.
@@ -1638,7 +1684,14 @@ def history():
         """
     )
 
-    return render_template("history.html", matches=matches, users=players)
+    total_matches = len(matches)
+
+    return render_template(
+        "history.html",
+        matches=matches,
+        users=players,
+        total_matches=total_matches,
+    )
 
 
 @app.route("/test_db")

@@ -154,6 +154,7 @@
     <div>
         <h1>Matches</h1>
         <p>All matches in the Chess Club</p>
+        <p><strong>Total Matches Recorded:</strong> {{ total_matches }}</p>
     </div>
     <button type="button" id="new-match-btn" class="btn btn-primary">New Match</button>
 </div>
@@ -187,38 +188,58 @@
                 <td>{{ match.venue or '-' }}</td>
                 <td>
                     {% if status_upper == 'COMPLETED' or status_upper == 'COMPLETE' %}
-                        <span class="badge success">Complete</span>
+                        <span class="badge success">{{ status_upper }}</span>
                     {% elif status_upper == 'PLAYING' %}
-                        <span class="badge primary">Playing</span>
+                        <span class="badge primary">{{ status_upper }}</span>
                     {% elif status_upper == 'CANCELED' or status_upper == 'CANCELLED' %}
-                        <span class="badge warning">Canceled</span>
+                        <span class="badge warning">{{ status_upper }}</span>
                     {% else %}
-                        <span class="badge primary">Pending</span>
+                        <span class="badge primary">{{ status_upper }}</span>
                     {% endif %}
                 </td>
                 <td>
+                    {% set p1_parts = match.player1_name.split() %}
+                    {% if match.player1_exists %}
                     <a href="/profile/{{ match.player1_id }}" class="player-link">
                         <div class="avatar-circle avatar-xs">
                             {% if get_avatar_url(match.player1_id) %}
                                 <img src="{{ get_avatar_url(match.player1_id) }}" alt="{{ match.player1_name }} avatar">
                             {% else %}
-                                {{ get_initials(match.player1_name.split()[0], match.player1_name.split()[1] if match.player1_name.split()|length > 1 else '') }}
+                                {{ get_initials(p1_parts[0] if p1_parts else 'P', p1_parts[1] if p1_parts|length > 1 else '') }}
                             {% endif %}
                         </div>
                         <span>{{ match.player1_name }}</span>
                     </a>
+                    {% else %}
+                    <span class="player-link">
+                        <div class="avatar-circle avatar-xs">
+                            {{ get_initials(p1_parts[0] if p1_parts else 'P', p1_parts[1] if p1_parts|length > 1 else '') }}
+                        </div>
+                        <span>{{ match.player1_name }}</span>
+                    </span>
+                    {% endif %}
                 </td>
                 <td>
+                    {% set p2_parts = match.player2_name.split() %}
+                    {% if match.player2_exists %}
                     <a href="/profile/{{ match.player2_id }}" class="player-link">
                         <div class="avatar-circle avatar-xs">
                             {% if get_avatar_url(match.player2_id) %}
                                 <img src="{{ get_avatar_url(match.player2_id) }}" alt="{{ match.player2_name }} avatar">
                             {% else %}
-                                {{ get_initials(match.player2_name.split()[0], match.player2_name.split()[1] if match.player2_name.split()|length > 1 else '') }}
+                                {{ get_initials(p2_parts[0] if p2_parts else 'P', p2_parts[1] if p2_parts|length > 1 else '') }}
                             {% endif %}
                         </div>
                         <span>{{ match.player2_name }}</span>
                     </a>
+                    {% else %}
+                    <span class="player-link">
+                        <div class="avatar-circle avatar-xs">
+                            {{ get_initials(p2_parts[0] if p2_parts else 'P', p2_parts[1] if p2_parts|length > 1 else '') }}
+                        </div>
+                        <span>{{ match.player2_name }}</span>
+                    </span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if match.winner_id == match.player1_id %}

@@ -214,6 +214,19 @@ class Phase1HardeningTests(unittest.TestCase):
         index_response = self.client.get("/")
         self.assertEqual(index_response.status_code, 200)
 
+    def test_match_page_shows_total_recorded_count(self):
+        total_rows = app_module.db.execute(
+            "SELECT COUNT(*) AS count FROM ChessAdminApp_match"
+        )
+        total_matches = int(total_rows[0]["count"])
+
+        response = self.client.get("/match")
+        self.assertEqual(response.status_code, 200)
+
+        html = response.get_data(as_text=True)
+        self.assertIn("Total Matches Recorded", html)
+        self.assertIn(str(total_matches), html)
+
     def test_history_page_exposes_match_actions(self):
         history_response = self.client.get("/history")
         self.assertEqual(history_response.status_code, 200)

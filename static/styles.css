@@ -470,9 +470,14 @@ a:hover {
     color: #bbf7d0;
     background: rgba(74, 222, 128, 0.08);
 }
+.badge.warning {
+        background: rgba(200, 120, 0, 0.18);
+        color: #e09040;
+        border: 1px solid rgba(200, 120, 0, 0.28);
+    }
 
 .badge.error {
-    color: #fecaca;
+    color: #edbaba;
     background: rgba(248, 113, 113, 0.08);
 }
 

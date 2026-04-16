@@ -1,9 +1,12 @@
 # Chess Club Management System
 
-#### Video Demo: To be added
+## Video Demo
 
-#### Description:
-I built this project to solve a simple but common problem in  chess clubs: results are often tracked in scattered notes, and rankings become hard to trust after many matches. This app keeps everything in one place so it is easier to manage players, record games, and show fair rankings.
+To be added.
+
+## Description
+
+I built this project to solve a simple but common problem in chess clubs: results are often tracked in scattered notes, and rankings become hard to trust after many matches. This app keeps everything in one place so it is easier to manage players, record games, and show fair rankings.
 
 Chess Club Management System is a Flask web app with a SQLite database. Players are managed through the system interface, and the dashboard shows current standings and match statistics. The goal of the app is not to be a huge enterprise platform, but a practical tool that a student club can actually use.
 
@@ -54,38 +57,55 @@ This project was developed with assistance from AI tools like ChatGPT and GitHub
 
 Overall, this project demonstrates a complete Flask workflow: database-driven pages, match tracking, ranking display, and a dashboard that is useful in real club scenarios. It is designed to be practical, easy to present, and easy to explain in a live demo.
 
-## Runtime, Configuration, and Tests
+## How to Run
 
-Current runtime expectation:
+### Prerequisites
 
-- Python 3.14.x (run directly with `python3.14`)
-- Dependencies are pinned in `requirements.txt`
+- Python 3.13 (or later)
+- pip (included with Python)
 
-Install dependencies (no venv required):
+### 1. Install dependencies
 
-```powershell
-cd E:\Skaak\ChessWBA
-python3.14 -m pip install -r requirements.txt
+```bash
+pip install -r requirements.txt
 ```
 
-Environment configuration:
+This installs Flask and python-dotenv. All other packages are pulled in automatically.
 
-- `CHESS_DB_PATH`: database file path (default: `E:\Skaak\ChessAdmin.sqlite3`)
-- `CHESS_SECRET_KEY`: Flask secret key (default falls back to local dev value)
-- `CHESS_AUTH_PHASE_ENABLED`: auth toggle (`true/false`, default: `false`)
+### 2. Set up the database
 
-PowerShell run example:
+The app expects a SQLite database file. By default it looks for `../ChessAdmin.sqlite3` (one folder above the project). You can override this with an environment variable:
 
-```powershell
-cd E:\Skaak\ChessWBA
-$env:CHESS_DB_PATH = "E:\Skaak\ChessAdmin.sqlite3"
-$env:CHESS_AUTH_PHASE_ENABLED = "false"
-python3.14 app.py
+```bash
+# Linux / macOS
+export CHESS_DB_PATH="/path/to/ChessAdmin.sqlite3"
+
+# Windows PowerShell
+$env:CHESS_DB_PATH = "C:\path\to\ChessAdmin.sqlite3"
 ```
 
-Run automated Phase 1 tests:
+A pre-populated database is included in the repository root so the app works out of the box.
 
-```powershell
-cd E:\Skaak\ChessWBA
-python3.14 -m unittest discover -s tests -p "test_*.py"
+### 3. Start the app
+
+```bash
+python app.py
 ```
+
+Then open **[http://127.0.0.1:5000](http://127.0.0.1:5000)** in your browser.
+
+### 4. Run the tests
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+All 10 tests should pass. They cover members, match recording, history, profile, and ranking.
+
+### Environment variables (optional)
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `CHESS_DB_PATH` | Path to the SQLite database file | `../ChessAdmin.sqlite3` |
+| `CHESS_SECRET_KEY` | Flask session secret key | Dev fallback value |
+| `CHESS_AUTH_PHASE_ENABLED` | Enable login/register routes (`true`/`false`) | `false` |
