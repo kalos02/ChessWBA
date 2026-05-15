@@ -1,6 +1,6 @@
 /*
   FILE ROLE:
-  members.js handles all Members page interactions (search, Add/Edit/Delete modals, and form submit flow).
+  members.js handles all Members page interactions (search, Add/Edit/View modal, and status toggle flow).
 
   FLOW OVERVIEW:
   Add Flow:
@@ -17,12 +17,12 @@
   4. Form submits POST to /editPlayer with hidden id.
   5. Flask handles request in app.py edit_player().
 
-  Delete Flow:
-  1. User clicks "Delete" on a row.
-  2. JavaScript reads data-player-id and opens delete modal.
-  3. JavaScript writes id into hidden input.
-  4. Form submits POST to /deletePlayer.
-  5. Flask handles request in app.py delete_player().
+  Status Flow:
+  1. User clicks "Edit" on a row.
+  2. JavaScript shows the Activate/Deactivate button in the shared modal footer.
+  3. Clicking it opens a styled confirmation modal.
+  4. Confirm submits POST to /togglePlayerStatus.
+  5. Flask handles request in app.py toggle_player_status().
 */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const MODAL_HIDDEN_DISPLAY = 'none';
     const ROUTE_ADD_PLAYER = '/addPlayer';
     const ROUTE_EDIT_PLAYER = '/editPlayer';
-    const ROUTE_DELETE_PLAYER = '/togglePlayerStatus';
+    const ROUTE_TOGGLE_PLAYER_STATUS = '/togglePlayerStatus';
 
     function debugLog(...args) {
         if (!ENABLE_MEMBERS_DEBUG_LOGS) {
@@ -70,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const addPlayerButton = document.getElementById('add-player-btn');
     const viewPlayerButtons = document.querySelectorAll('.view-player-btn');
     const editPlayerButtons = document.querySelectorAll('.edit-player-btn');
-    const deletePlayerButtons = document.querySelectorAll('.delete-player-btn');
 
     const playerModalBackdrop = document.getElementById('player-modal-backdrop');
     const playerModalTitle = document.getElementById('player-modal-title');
@@ -79,8 +78,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const playerModalForm = document.getElementById('player-modal-form');
     const playerModalDialog = playerModalBackdrop ? playerModalBackdrop.querySelector('.members-modal') : null;
     const playerModalSubmitButton = playerModalForm
-        ? playerModalForm.querySelector('button[type="submit"]')
+        ? playerModalForm.querySelector('button[type="submit"]:not(#player-status-toggle-btn)')
         : null;
+    const playerStatusToggleButton = document.getElementById('player-status-toggle-btn');
     const playerFormGrid = playerModalForm ? playerModalForm.querySelector('.members-form-grid') : null;
     const memberViewPanel = document.getElementById('member-view-panel');
     const memberViewAvatar = document.getElementById('member-view-avatar');
@@ -108,13 +108,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const playerDateOfBirthInput = document.getElementById('date-of-birth');
     const playerDateJoinedInput = document.getElementById('date-joined');
     const playerAvatarInput = document.getElementById('avatar');
+    const playerBioInput = document.getElementById('bio');
 
-    const deleteModalBackdrop = document.getElementById('delete-modal-backdrop');
-    const deleteModalCloseButton = document.getElementById('delete-modal-close');
-    const deleteModalCancelButton = document.getElementById('delete-modal-cancel');
-    const deleteModalForm = document.getElementById('delete-modal-form');
-    const deletePlayerIdInput = document.getElementById('delete-player-id');
-    const deleteModalMessage = document.getElementById('delete-modal-message');
+    const statusConfirmBackdrop = document.getElementById('status-confirm-backdrop');
+    const statusConfirmCloseButton = document.getElementById('status-confirm-close');
+    const statusConfirmCancelButton = document.getElementById('status-confirm-cancel');
+    const statusConfirmForm = document.getElementById('status-confirm-form');
+    const statusConfirmPlayerIdInput = document.getElementById('status-confirm-player-id');
+    const statusConfirmText = document.getElementById('status-confirm-text');
+    const statusConfirmTitle = document.getElementById('status-confirm-title');
+    const statusConfirmSubmitButton = document.getElementById('status-confirm-submit');
 
     if (!playerModalBackdrop || !playerModalForm) {
         return;
@@ -143,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setInputValue(playerPointsInput, values.points);
         setInputValue(playerDateOfBirthInput, values.dateOfBirth);
         setInputValue(playerDateJoinedInput, values.dateJoined);
+        setInputValue(playerBioInput, values.bio ?? '');
 
         if (playerAvatarInput) {
             playerAvatarInput.value = '';
@@ -159,7 +163,8 @@ document.addEventListener('DOMContentLoaded', function () {
             playerPointsInput,
             playerDateOfBirthInput,
             playerDateJoinedInput,
-            playerAvatarInput
+            playerAvatarInput,
+            playerBioInput
         ].forEach(function (inputElement) {
             if (!inputElement) {
                 return;
@@ -187,6 +192,34 @@ document.addEventListener('DOMContentLoaded', function () {
         if (playerModalCancelButton) {
             playerModalCancelButton.textContent = isReadOnly ? 'Close' : 'Cancel';
         }
+    }
+
+    function configurePlayerStatusButton(playerValues, shouldShowButton) {
+        if (!playerStatusToggleButton) {
+            return;
+        }
+
+        const showButton = Boolean(shouldShowButton && playerValues && playerValues.playerId);
+        playerStatusToggleButton.hidden = !showButton;
+        playerStatusToggleButton.style.display = showButton ? '' : 'none';
+
+        if (!showButton) {
+            playerStatusToggleButton.textContent = 'Deactivate';
+            playerStatusToggleButton.classList.remove('btn-primary');
+            playerStatusToggleButton.classList.add('btn-danger');
+            delete playerStatusToggleButton.dataset.playerName;
+            delete playerStatusToggleButton.dataset.actionVerb;
+            return;
+        }
+
+        const fullName = [playerValues.firstName, playerValues.lastName].filter(Boolean).join(' ').trim() || 'this player';
+        const isInactive = String(playerValues.isActive) === '0';
+
+        playerStatusToggleButton.textContent = isInactive ? 'Activate' : 'Deactivate';
+        playerStatusToggleButton.classList.toggle('btn-primary', isInactive);
+        playerStatusToggleButton.classList.toggle('btn-danger', !isInactive);
+        playerStatusToggleButton.dataset.playerName = fullName;
+        playerStatusToggleButton.dataset.actionVerb = isInactive ? 'activate' : 'deactivate';
     }
 
     function populatePlayerViewPanel(values) {
@@ -261,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function () {
             dateOfBirth: playerRow.dataset.dob ? String(playerRow.dataset.dob).slice(0, 10) : '',
             dateJoined: playerRow.dataset.dateJoined ? String(playerRow.dataset.dateJoined).slice(0, 10) : '',
             isActive: playerRow.dataset.isActive || '1',
+            bio: playerRow.dataset.bio || '',
             avatarUrl: avatarImage ? avatarImage.getAttribute('src') : '',
             avatarInitials: avatarCircle ? avatarCircle.textContent.trim() : ''
         };
@@ -285,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
         modalBackdropElement.setAttribute('aria-hidden', 'true');
 
         // Restore page scrolling when no modal is open.
-        if (!isModalVisible(playerModalBackdrop) && !isModalVisible(deleteModalBackdrop)) {
+        if (!isModalVisible(playerModalBackdrop) && !isModalVisible(statusConfirmBackdrop)) {
             document.body.style.overflow = '';
         }
     }
@@ -307,8 +341,35 @@ document.addEventListener('DOMContentLoaded', function () {
         hideModal(playerModalBackdrop);
     }
 
-    function closeDeletePlayerModal() {
-        hideModal(deleteModalBackdrop);
+    function closeStatusConfirmModal() {
+        hideModal(statusConfirmBackdrop);
+    }
+
+    function openStatusConfirmModal() {
+        if (!playerStatusToggleButton || !statusConfirmBackdrop || !statusConfirmForm) {
+            return;
+        }
+
+        const playerId = playerIdInput ? playerIdInput.value : '';
+        const playerName = playerStatusToggleButton.dataset.playerName || 'this player';
+        const actionVerb = playerStatusToggleButton.dataset.actionVerb || 'update';
+        const actionLabel = actionVerb.charAt(0).toUpperCase() + actionVerb.slice(1);
+
+        setInputValue(statusConfirmPlayerIdInput, playerId);
+
+        if (statusConfirmTitle) {
+            statusConfirmTitle.textContent = actionLabel + ' Player';
+        }
+        if (statusConfirmText) {
+            statusConfirmText.textContent = 'Are you sure you want to ' + actionVerb + ' ' + playerName + '?';
+        }
+        if (statusConfirmSubmitButton) {
+            statusConfirmSubmitButton.textContent = actionLabel;
+            statusConfirmSubmitButton.classList.toggle('btn-primary', actionVerb === 'activate');
+            statusConfirmSubmitButton.classList.toggle('btn-danger', actionVerb !== 'activate');
+        }
+
+        showModal(statusConfirmBackdrop);
     }
 
     function bindModalCloseHandlers(
@@ -357,6 +418,7 @@ document.addEventListener('DOMContentLoaded', function () {
             dateOfBirth: '',
             dateJoined: ''
         });
+        configurePlayerStatusButton(null, false);
 
         showModal(playerModalBackdrop);
         playerFirstNameInput.focus();
@@ -371,6 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setPlayerFormValues(playerValues);
         populatePlayerViewPanel(playerValues);
         setPlayerFormReadOnlyState(true);
+        configurePlayerStatusButton(playerValues, false);
 
         showModal(playerModalBackdrop);
         if (playerModalCancelButton) {
@@ -388,38 +451,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setPlayerFormRouteAndTitle(ROUTE_EDIT_PLAYER, 'Edit Player');
         setPlayerFormReadOnlyState(false);
         setPlayerFormValues(playerValues);
+        configurePlayerStatusButton(playerValues, true);
 
         showModal(playerModalBackdrop);
         playerFirstNameInput.focus();
-    }
-
-        function openDeletePlayerModal(playerId, playerName, isActive) {
-                // Toggle flow:
-                // Delete button data-player-id -> JS sets hidden input #delete-player-id ->
-                // form POST /togglePlayerStatus -> toggle_player_status() in app.py.
-                // playerId is the unique identifier. We do not use names because names can repeat.
-                debugLog('[Members][Delete] Opening Delete Modal for playerId: ' + playerId);
-                debugLog('[Members][Delete] Setting hidden delete id field to: ' + playerId);
-
-                const safePlayerName = playerName || 'this player';
-                const actionLabel = isActive === '1' ? 'Deactivate' : 'Activate';
-                const actionVerb = isActive === '1' ? 'deactivate' : 'activate';
-
-                setInputValue(deletePlayerIdInput, playerId);
-                const confirmBtn = deleteModalForm
-                    ? deleteModalForm.querySelector('[type="submit"]')
-                    : null;
-                const modalTitle = document.getElementById('delete-modal-title');
-                if (confirmBtn) {
-                    confirmBtn.textContent = actionLabel;
-                }
-                if (modalTitle) {
-                    modalTitle.textContent = actionLabel + ' Player';
-                }
-                if (deleteModalMessage) {
-                    deleteModalMessage.textContent = 'Are you sure you want to ' + actionVerb + ' ' + safePlayerName + '?';
-                }
-                showModal(deleteModalBackdrop);
     }
 
     function openEditModalFromUrlIfRequested() {
@@ -509,49 +544,33 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    deletePlayerButtons.forEach(function (deleteButton) {
-        deleteButton.addEventListener('click', function () {
-            // data-player-id comes from the HTML button rendered per table row.
-            const playerId = deleteButton.dataset.playerId || '';
-            if (!playerId) {
-                return;
-            }
-
-            const isActive = deleteButton.dataset.isActive || '1';
-            const playerRow = deleteButton.closest('.table-row');
-            const playerName = playerRow
-                ? [playerRow.dataset.firstName || '', playerRow.dataset.lastName || ''].join(' ').trim()
-                : 'this player';
-
-            runDebugFlow(
-                '[Members][Delete] Flow',
-                '[Members][Delete] Delete button clicked for playerId: ' + playerId,
-                function () {
-                    openDeletePlayerModal(playerId, playerName, isActive);
-                }
-            );
-        });
-    });
-
     bindModalCloseHandlers(playerModalBackdrop, playerModalCloseButton, playerModalCancelButton, closePlayerModal, {
         enableCloseButton: true,
         enableBackdropClose: false
     });
-    bindModalCloseHandlers(deleteModalBackdrop, deleteModalCloseButton, deleteModalCancelButton, closeDeletePlayerModal, {
-        enableCloseButton: false,
+    bindModalCloseHandlers(statusConfirmBackdrop, statusConfirmCloseButton, statusConfirmCancelButton, closeStatusConfirmModal, {
+        enableCloseButton: true,
         enableBackdropClose: false
     });
 
-    if (deleteModalForm) {
-        // This form posts to /deletePlayer in app.py.
-        deleteModalForm.addEventListener('submit', function () {
-            debugLog('[Members][Delete] Submitting Delete Form to ' + ROUTE_DELETE_PLAYER);
-            closeDeletePlayerModal();
+    if (playerStatusToggleButton) {
+        playerStatusToggleButton.addEventListener('click', function (event) {
+            event.preventDefault();
+            debugLog('[Members][Status] Opening styled confirmation modal');
+            openStatusConfirmModal();
+        });
+    }
+
+    if (statusConfirmForm) {
+        statusConfirmForm.addEventListener('submit', function () {
+            debugLog('[Members][Status] Submitting status form to ' + ROUTE_TOGGLE_PLAYER_STATUS);
+            closeStatusConfirmModal();
+            closePlayerModal();
         });
     }
 
     if (playerModalForm) {
-        // Shared player modal submits to /addPlayer or /editPlayer based on modal mode.
+        // Shared player modal submits to /addPlayer or /editPlayer based on the current mode.
         playerModalForm.addEventListener('submit', function () {
             const routePath = playerModalForm.getAttribute('action') || ROUTE_ADD_PLAYER;
 
@@ -565,6 +584,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('keydown', function (event) {
         if (event.key !== 'Escape') {
+            return;
+        }
+
+        if (isModalVisible(statusConfirmBackdrop)) {
+            closeStatusConfirmModal();
             return;
         }
 

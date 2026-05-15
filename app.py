@@ -166,6 +166,18 @@ def validate_required_schema():
 
 validate_required_schema()
 
+
+def _migrate_bio_column():
+    """Add bio column to ChessAdminApp_player if it does not exist yet."""
+    with sqlite3.connect(app.config["DB_PATH"]) as _conn:
+        cols = [row[1] for row in _conn.execute("PRAGMA table_info(ChessAdminApp_player)").fetchall()]
+        if "bio" not in cols:
+            _conn.execute("ALTER TABLE ChessAdminApp_player ADD COLUMN bio TEXT DEFAULT '' NOT NULL")
+            _conn.commit()
+
+
+_migrate_bio_column()
+
 # Ensure upload folder exists once at startup instead of checking each request.
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
@@ -783,7 +795,8 @@ def members():
                 WHEN COALESCE(ms.matches_played, 0) = 0 THEN 0
                 ELSE ROUND((COALESCE(ms.wins, 0) * 100.0) / ms.matches_played, 1)
             END AS win_ratio,
-            COALESCE(au.date_joined, cp.date_joined) AS created_at
+            COALESCE(au.date_joined, cp.date_joined) AS created_at,
+            cp.bio
         FROM ChessAdminApp_player cp
         LEFT JOIN auth_user au ON cp.id = au.id
         LEFT JOIN match_stats ms ON ms.player_id = cp.id
@@ -883,6 +896,7 @@ def edit_player():
     points_raw = player_form_data["points_raw"]
     date_of_birth = player_form_data["date_of_birth"]
     date_joined = player_form_data["date_joined"]
+    bio = request.form.get("bio", "").strip()[:500]
     avatar_file = request.files.get("avatar")
 
     if not player_id_raw:
@@ -922,7 +936,7 @@ def edit_player():
         db.execute(
             """
             UPDATE ChessAdminApp_player
-            SET first_name = ?, last_name = ?, country = ?, city = ?, ranking = ?, points = ?, date_of_birth = ?, date_joined = ?
+            SET first_name = ?, last_name = ?, country = ?, city = ?, ranking = ?, points = ?, date_of_birth = ?, date_joined = ?, bio = ?
             WHERE id = ?
             """,
             first_name,
@@ -933,6 +947,7 @@ def edit_player():
             points,
             date_of_birth,
             date_joined,
+            bio,
             player_id,
         )
 
@@ -1059,7 +1074,8 @@ def profile(user_id):
             au.email,
             au.username,
             au.last_login,
-            au.date_joined AS created_at
+            au.date_joined AS created_at,
+            cp.bio
         FROM ChessAdminApp_player cp
         LEFT JOIN auth_user au ON cp.id = au.id
         WHERE cp.id = ?

@@ -42,7 +42,7 @@
 }
 
 .members-modal {
-    width: min(560px, 100%);
+    width: min(760px, 100%);
     background: var(--surface, #111827);
     border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
     border-radius: 12px;
@@ -201,17 +201,17 @@
 .member-view-detail-key {
     display: block;
     color: var(--text-secondary, #a1a1aa);
-    font-size: 0.7rem;
+    font-size: 0.76rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 0.28rem;
+    letter-spacing: 0;
+    text-transform: none;
+    margin-bottom: 0.35rem;
 }
 
 .member-view-stat-value,
 .member-view-detail-value {
     color: var(--text-primary, #f9fafb);
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .member-view-details-card {
@@ -232,16 +232,28 @@
 
 .member-view-detail-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.member-view-detail-category {
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 0.65rem 0.7rem;
 }
 
 .member-view-detail-item {
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-    border-radius: 8px;
-    padding: 0.7rem 0.75rem;
-    background: var(--surface-soft, #0f172a);
-    min-height: 72px;
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    padding: 0.5rem 0;
+    background: transparent;
+    min-height: 0;
+}
+
+.member-view-detail-item:first-of-type {
+    border-top: none;
+    padding-top: 0;
 }
 
 .btn-primary,
@@ -261,13 +273,13 @@
 }
 
 .btn-danger {
-    border-color: #ef4444;
+    border-color: #747474;
     color: #fee2e2;
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(108, 107, 107, 0.2);
 }
 
 .btn-danger:hover {
-    background: rgba(239, 68, 68, 0.3);
+    background: rgba(108, 108, 108, 0.3);
 }
 
 .row-actions {
@@ -406,12 +418,21 @@
     }
 
     .members-form-grid,
-    .member-view-layout,
+    .member-view-layout {
+        grid-template-columns: 1fr;
+    }
+
     .member-view-detail-grid {
         grid-template-columns: 1fr;
     }
 
     .members-field.full {
         grid-column: span 1;
+    }
+}
+
+@media (max-width: 980px) {
+    .member-view-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

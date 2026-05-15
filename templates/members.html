@@ -12,8 +12,8 @@
 <style>
     .player-inactive { opacity: 0.5; }
     .player-inactive .badge {
-        background: var(--border, #ccc);
-        color: var(--text-muted, #888);
+        background: var(--border, #c7c4c4);
+        color: var(--text-muted, #8b8686);
     }
 </style>
 <div class="page-header">
@@ -62,6 +62,7 @@
                 data-dob="{{ user.date_of_birth if user.date_of_birth else '' }}"
                 data-date-joined="{{ user.created_at[:10] if user.created_at else '' }}"
                 data-is-active="{{ user.is_active }}"
+                data-bio="{{ user.bio or '' }}"
             >
                 <td>
                     <span class="rank-badge {% if user.rank == 1 %}gold{% elif user.rank == 2 %}silver{% elif user.rank == 3 %}bronze{% endif %}">
@@ -112,23 +113,7 @@
                 <td>
                     <div class="row-actions">
                         <button type="button" class="btn btn-secondary btn-sm btn-compact view-player-btn">View</button>
-
                         <button type="button" class="btn btn-secondary btn-sm btn-compact edit-player-btn">Edit</button>
-
-
-
-
-                                {# HTML -> JS -> Flask trace:
-                                    JS reads data-player-id on click, writes it to hidden input name="id",
-                                    then POST /togglePlayerStatus is handled by toggle_player_status() in app.py. #}
-
-                        {% if user.is_active %}
-                        <button type="button" class="btn btn-sm btn-compact btn-danger delete-player-btn"
-                                data-player-id="{{ user.id }}" data-is-active="1">Deactivate</button>
-                        {% else %}
-                        <button type="button" class="btn btn-sm btn-compact btn-primary delete-player-btn"
-                                data-player-id="{{ user.id }}" data-is-active="0">Activate</button>
-                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -141,7 +126,6 @@
     <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="player-modal-title">
         <div class="members-modal-header">
             <h3 id="player-modal-title" class="members-modal-title">Add Player</h3>
-            <button type="button" id="player-modal-close" class="members-modal-close" aria-label="Close">X</button>
         </div>
 
         {# Shared add/edit form route (set by JS):
@@ -185,34 +169,40 @@
                         <p class="member-view-copy">A quick summary of this club member's information.</p>
 
                         <div class="member-view-detail-grid">
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">Full Name</span>
-                                <strong id="member-view-full-name" class="member-view-detail-value">N/A</strong>
-                            </div>
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">Email</span>
-                                <strong id="member-view-email" class="member-view-detail-value">N/A</strong>
-                            </div>
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">Country</span>
-                                <strong id="member-view-country" class="member-view-detail-value">N/A</strong>
-                            </div>
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">City</span>
-                                <strong id="member-view-city" class="member-view-detail-value">N/A</strong>
-                            </div>
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">Status</span>
-                                <strong id="member-view-status" class="member-view-detail-value">N/A</strong>
-                            </div>
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">Date Joined</span>
-                                <strong id="member-view-date-joined" class="member-view-detail-value">N/A</strong>
-                            </div>
-                            <div class="member-view-detail-item">
-                                <span class="member-view-detail-key">Date of Birth</span>
-                                <strong id="member-view-date-of-birth" class="member-view-detail-value">N/A</strong>
-                            </div>
+                            <section class="member-view-detail-category">
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">Full Name</span>
+                                    <strong id="member-view-full-name" class="member-view-detail-value">N/A</strong>
+                                </div>
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">Email</span>
+                                    <strong id="member-view-email" class="member-view-detail-value">N/A</strong>
+                                </div>
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">Date of Birth</span>
+                                    <strong id="member-view-date-of-birth" class="member-view-detail-value">N/A</strong>
+                                </div>
+                            </section>
+                            <section class="member-view-detail-category">
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">Status</span>
+                                    <strong id="member-view-status" class="member-view-detail-value">N/A</strong>
+                                </div>
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">Date Joined</span>
+                                    <strong id="member-view-date-joined" class="member-view-detail-value">N/A</strong>
+                                </div>
+                            </section>
+                            <section class="member-view-detail-category">
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">Country</span>
+                                    <strong id="member-view-country" class="member-view-detail-value">N/A</strong>
+                                </div>
+                                <div class="member-view-detail-item">
+                                    <span class="member-view-detail-key">City</span>
+                                    <strong id="member-view-city" class="member-view-detail-value">N/A</strong>
+                                </div>
+                            </section>
                         </div>
                     </section>
                 </div>
@@ -256,9 +246,21 @@
                     <span class="label-hint">Select an image when editing a player profile.</span>
                     <input id="avatar" name="avatar" type="file" accept=".jpg,.jpeg,.png,.gif">
                 </div>
+                <div class="members-field full">
+                    <label for="bio">About This Player <span class="text-muted">(Optional)</span></label>
+                    <textarea id="bio" name="bio" maxlength="500" rows="3" placeholder="A short note about this player..."></textarea>
+                </div>
             </div>
 
             <div class="members-modal-footer">
+                {# Edit mode only: JS shows this button beside Cancel and Save.
+                   It opens the styled status confirmation dialog below. #}
+                <button
+                    type="button"
+                    id="player-status-toggle-btn"
+                    class="btn btn-danger"
+                    hidden
+                >Deactivate</button>
                 <button type="button" id="player-modal-cancel" class="btn btn-secondary">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save</button>
             </div>
@@ -266,28 +268,19 @@
     </div>
 </div>
 
-<div id="delete-modal-backdrop" class="members-modal-backdrop" aria-hidden="true">
-    <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+<div id="status-confirm-backdrop" class="members-modal-backdrop" aria-hidden="true">
+    <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="status-confirm-title">
         <div class="members-modal-header">
-            <h3 id="delete-modal-title" class="members-modal-title">Update Player Status</h3>
+            <h3 id="status-confirm-title" class="members-modal-title">Update Player Status</h3>
         </div>
-
-        {# Delete form route mapping:
-           POST /deletePlayer (app.py delete_player)
-           members.js writes selected playerId into hidden input below #}
-        <form id="delete-modal-form" class="members-modal-form" method="POST" action="/togglePlayerStatus">
-            {# playerId trace:
-               JS copies button data-player-id into this field before submit.
-               Flask toggle_player_status() uses id to update one exact record. #}
-            <input type="hidden" id="delete-player-id" name="id">
+        <form id="status-confirm-form" class="members-modal-form" method="POST" action="/togglePlayerStatus">
+            <input type="hidden" id="status-confirm-player-id" name="id">
             <div class="members-modal-body">
-                <p id="delete-modal-message" class="text-muted members-delete-text">Are you sure you want to change this player's status?</p>
-                <p class="text-muted members-delete-note">This will toggle between Active and Inactive.</p>
+                <p id="status-confirm-text" class="text-muted members-delete-text">Are you sure you want to update this player's status?</p>
             </div>
-
             <div class="members-modal-footer">
-                <button type="button" id="delete-modal-cancel" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-danger">Confirm</button>
+                <button type="button" id="status-confirm-cancel" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="status-confirm-submit" class="btn btn-danger">Confirm</button>
             </div>
         </form>
     </div>

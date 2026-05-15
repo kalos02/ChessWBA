@@ -73,34 +73,56 @@
     }
 
     .profile-details {
+        margin-top: 0;
+    }
+
+    .profile-details-grid {
         margin-top: 12px;
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: 14px 16px;
+    }
+
+    .profile-category-column {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-soft);
+        padding: 12px;
+    }
+
+    .profile-category-title {
+        margin: 0 0 10px;
+        color: var(--text-primary);
+        font-size: 0.92rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
     }
 
     .profile-detail-row {
-        display: block;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 0.8rem 0.9rem;
-        background: var(--surface-soft);
-        min-height: 82px;
+        border-top: 1px solid var(--border);
+        padding: 10px 0;
+    }
+
+    .profile-detail-row:first-of-type {
+        border-top: none;
+        padding-top: 0;
     }
 
     .profile-detail-key {
         color: var(--text-secondary);
         font-weight: 600;
-        font-size: 0.8rem;
-        letter-spacing: 0.04em;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        margin-bottom: 0.35rem;
+        margin-bottom: 4px;
     }
 
     .profile-detail-value {
         color: var(--text-primary);
-        font-weight: 600;
-        line-height: 1.35;
+        font-weight: 400;
+        font-size: 1rem;
+        line-height: 1.5;
         word-break: break-word;
     }
 
@@ -170,13 +192,22 @@
         color: var(--text-secondary);
     }
 
+    .profile-bio-content {
+        padding: 1rem 1.1rem;
+        color: var(--text-primary);
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
     @media (max-width: 960px) {
         .profile-shell {
             grid-template-columns: 1fr;
             max-width: 680px;
         }
+    }
 
-        .profile-details {
+    @media (max-width: 640px) {
+        .profile-details-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -225,29 +256,51 @@
         </div>
     </article>
 
-    <article class="profile-card">
+    <article class="profile-card profile-details">
         <h2 class="card-title">Player Details</h2>
-        <p class="profile-subtle">A quick summary of this club member's information.</p>
-        <div class="profile-details">
-            <div class="profile-detail-row">
-                <div class="profile-detail-key">Full Name</div>
-                <div class="profile-detail-value">{{ user.first_name }} {{ user.last_name }}</div>
-            </div>
-            <div class="profile-detail-row">
-                <div class="profile-detail-key">Email</div>
-                <div class="profile-detail-value">{{ user.email or 'N/A' }}</div>
-            </div>
-            <div class="profile-detail-row">
-                <div class="profile-detail-key">Date Joined</div>
-                <div class="profile-detail-value">{% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}N/A{% endif %}</div>
-            </div>
-            <div class="profile-detail-row">
-                <div class="profile-detail-key">Date of Birth</div>
-                <div class="profile-detail-value">{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth and user.date_of_birth.strftime is defined else (user.date_of_birth.split(' ')[0] if user.date_of_birth else 'N/A') }}</div>
-            </div>
+        <div class="profile-details-grid">
+            <section class="profile-category-column">
+                <h3 class="profile-category-title">Personal</h3>
+                <div class="profile-detail-row">
+                    <div class="profile-detail-key">Full Name</div>
+                    <div class="profile-detail-value">{{ user.first_name }} {{ user.last_name }}</div>
+                </div>
+                <div class="profile-detail-row">
+                    <div class="profile-detail-key">Email</div>
+                    <div class="profile-detail-value">{{ user.email or 'N/A' }}</div>
+                </div>
+                <div class="profile-detail-row">
+                    <div class="profile-detail-key">Date of Birth</div>
+                    <div class="profile-detail-value">{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth and user.date_of_birth.strftime is defined else (user.date_of_birth.split(' ')[0] if user.date_of_birth else 'N/A') }}</div>
+                </div>
+            </section>
+            <section class="profile-category-column">
+                <h3 class="profile-category-title">Club & Location</h3>
+                <div class="profile-detail-row">
+                    <div class="profile-detail-key">Date Joined</div>
+                    <div class="profile-detail-value">{% if user.created_at %}{{ user.created_at.strftime('%b %d, %Y') }}{% else %}N/A{% endif %}</div>
+                </div>
+                <div class="profile-detail-row">
+                    <div class="profile-detail-key">Country</div>
+                    <div class="profile-detail-value">{{ user.country or 'N/A' }}</div>
+                </div>
+                <div class="profile-detail-row">
+                    <div class="profile-detail-key">City</div>
+                    <div class="profile-detail-value">{{ user.city or 'N/A' }}</div>
+                </div>
+            </section>
         </div>
     </article>
 </div>
+
+{% if user.bio %}
+<div class="card matches-card">
+    <div class="card-header">
+        <h2 class="card-title">About</h2>
+    </div>
+    <div class="profile-bio-content">{{ user.bio }}</div>
+</div>
+{% endif %}
 
 {% if matches %}
 <div class="card matches-card">

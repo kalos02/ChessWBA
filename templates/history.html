@@ -60,7 +60,7 @@
         transition: all 0.14s ease;
     }
     .btn-sm:hover { background: rgba(255,255,255,0.07); color: var(--text); }
-    .btn-sm.btn-danger { color: #e05555; border-color: rgba(224,85,85,0.35); }
+    .btn-sm.btn-danger { color: #c5c2c2c2; border-color: rgba(188, 187, 187, 0.622); }
     .btn-sm.btn-danger:hover { background: rgba(224,85,85,0.12); }
 
     /* Modal (members-modal pattern) */
@@ -95,10 +95,7 @@
         border-radius: 6px; width: 30px; height: 30px; cursor: pointer;
     }
 
-    #add-match-close,
-    #edit-match-close {
-        display: none;
-    }
+
     .members-modal-body { padding: 14px 16px 16px; }
     .members-modal-form { display: flex; flex-direction: column; gap: 14px; }
     .members-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -330,7 +327,6 @@
     <div class="members-modal">
         <div class="members-modal-header">
             <h2 class="members-modal-title">Add Match</h2>
-            <button type="button" class="members-modal-close" id="add-match-close">&times;</button>
         </div>
         <form method="post" action="/match" class="members-modal-form">
             <div class="members-modal-body">
@@ -364,10 +360,10 @@
                     <div class="members-field full">
                         <label for="add-status">Status</label>
                         <select id="add-status" name="status">
-                            <option value="SCHEDULED">Pending</option>
-                            <option value="PLAYING">Playing</option>
-                            <option value="COMPLETED">Complete</option>
-                            <option value="CANCELED">Canceled</option>
+                            <option value="SCHEDULED">SCHEDULED</option>
+                            <option value="PLAYING">PLAYING</option>
+                            <option value="COMPLETED">COMPLETED</option>
+                            <option value="CANCELED">CANCELED</option>
                         </select>
                     </div>
                     <div class="members-field full is-hidden" id="add-result-group">
@@ -394,7 +390,6 @@
     <div class="members-modal">
         <div class="members-modal-header">
             <h2 class="members-modal-title">Edit Match</h2>
-            <button type="button" class="members-modal-close" id="edit-match-close">&times;</button>
         </div>
         <form method="post" action="/editMatch" class="members-modal-form">
             <input type="hidden" id="edit-match-id" name="match_id">
@@ -429,7 +424,7 @@
                     <div class="members-field full">
                         <label for="edit-status">Status</label>
                         <select id="edit-status" name="status">
-                            <option value="SCHEDULED">Pending</option>
+                            <option value="SCHEDULED">SCHEDULED</option>
                             <option value="PLAYING">Playing</option>
                             <option value="COMPLETED">Complete</option>
                             <option value="CANCELED">Canceled</option>
@@ -458,7 +453,6 @@
     <div class="members-modal" role="dialog" aria-modal="true" aria-labelledby="delete-match-title">
         <div class="members-modal-header">
             <h3 id="delete-match-title" class="members-modal-title">Delete Match</h3>
-            <button type="button" id="delete-match-close" class="members-modal-close" aria-label="Close">X</button>
         </div>
         <form id="delete-match-form" class="members-modal-form" method="POST" action="/deleteMatch">
             <input type="hidden" id="delete-match-id" name="match_id">

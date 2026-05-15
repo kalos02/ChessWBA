@@ -356,9 +356,9 @@ textarea:focus {
 
 .btn-danger,
 .logout-btn {
-    background: rgba(248, 113, 113, 0.14);
+    background: rgba(86, 83, 83, 0.486);
     color: #fecaca;
-    border-color: rgba(248, 113, 113, 0.32);
+    border-color: rgba(181, 181, 181, 0.32);
 }
 
 .btn-danger:hover,
