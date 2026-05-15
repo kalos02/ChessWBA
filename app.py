@@ -96,7 +96,7 @@ app.config["AUTH_PHASE_ENABLED"] = os.getenv("CHESS_AUTH_PHASE_ENABLED", "false"
 }
 app.config["DB_PATH"] = os.getenv(
     "CHESS_DB_PATH",
-    os.path.join(os.path.dirname(__file__), "..", "ChessAdmin.sqlite3"),
+    os.path.join(os.path.dirname(__file__), "./db", "ChessAdmin.sqlite3"),
 )
 
 # Database connection.
