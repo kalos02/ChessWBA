@@ -2,7 +2,7 @@
 
 ## Video Demo
 
-To be added.
+Add your CS50 submit50 video demo URL here before submission.
 
 ## Description
 
@@ -18,6 +18,32 @@ The dashboard is the center of the project. It shows:
 - total matches
 - your current rank
 - current top player
+
+This repository is already structured for CS50 submission from the `ChessWBA/` folder.
+
+## Project structure
+
+The app is ready to submit from inside `ChessWBA/`. The final submission should include the app source, templates, static assets, dependencies list, and the SQLite database.
+
+ChessWBA/
+├── app.py
+├── helpers.py
+├── README.md
+├── requirements.txt
+├── db/
+│   └── ChessAdmin.sqlite3
+├── static/
+│   ├── styles.css
+│   ├── css/
+│   ├── js/
+│   └── uploads/
+├── templates/
+│   ├── index.html
+│   ├── layout.html
+│   └── ...
+└── tests/
+
+Remove any generated files before submission: `__pycache__/`, `*.pyc`, `.pytest_cache/`, `session_data/`, and `node_modules/` are not required.
 
 It also has charts so the data is easier to understand quickly:
 
@@ -44,7 +70,7 @@ Project structure is straightforward:
 - templates/: all HTML pages (dashboard, members, match, history, player details, errors)
 - login/register/edit_profile templates are kept for future authentication work and are not used in the current top navigation flow
 - static/: styles and uploaded images
-- ChessAdmin.sqlite3: database with users, players, and matches
+- db/ChessAdmin.sqlite3: database with users, players, and matches
 - requirements.txt: dependencies needed to run the app
 
 I used Flask because it is lightweight and easy to reason about in a CS50 final project. It lets me keep backend logic readable and route-by-route. I used SQLite because setup is simple, local, and perfect for a student project demo. I used Jinja templates because they connect cleanly with Flask and keep the frontend organized without adding heavy frameworks.
@@ -74,7 +100,7 @@ This installs Flask and python-dotenv. All other packages are pulled in automati
 
 ### 2. Set up the database
 
-The app expects a SQLite database file. By default it looks for `../ChessAdmin.sqlite3` (one folder above the project). You can override this with an environment variable:
+The app expects a SQLite database file. By default it looks for `./db/ChessAdmin.sqlite3` inside the project folder. You can override this with an environment variable:
 
 ```bash
 # Linux / macOS
@@ -84,7 +110,7 @@ export CHESS_DB_PATH="/path/to/ChessAdmin.sqlite3"
 $env:CHESS_DB_PATH = "C:\path\to\ChessAdmin.sqlite3"
 ```
 
-A pre-populated database is included in the repository root so the app works out of the box.
+A pre-populated database is included in the `ChessWBA/db/` folder so the app works out of the box.
 
 ### 3. Start the app
 
@@ -106,6 +132,6 @@ All 10 tests should pass. They cover members, match recording, history, profile,
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `CHESS_DB_PATH` | Path to the SQLite database file | `../ChessAdmin.sqlite3` |
+| `CHESS_DB_PATH` | Path to the SQLite database file | `./db/ChessAdmin.sqlite3` |
 | `CHESS_SECRET_KEY` | Flask session secret key | Dev fallback value |
 | `CHESS_AUTH_PHASE_ENABLED` | Enable login/register routes (`true`/`false`) | `false` |
