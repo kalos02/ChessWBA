@@ -22,6 +22,7 @@ import os
 import re
 import sqlite3
 from datetime import datetime
+from typing import Any, Dict, List
 
 from flask import Flask, render_template, request, redirect, session, jsonify, flash, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -48,10 +49,10 @@ logger = logging.getLogger(__name__)
 class Database:
     """Simple SQLite wrapper that returns SELECT rows as dictionaries."""
 
-    def __init__(self, db_path):
+    def __init__(self, db_path: str):
         self.db_path = db_path
 
-    def execute(self, query, *args):
+    def execute(self, query: str, *args: Any) -> List[Dict[str, Any]]:
         """Execute SQL and return list[dict] for SELECT/PRAGMA queries."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -64,7 +65,7 @@ class Database:
                 return [dict(row) for row in rows]
             conn.commit()
             conn.close()
-            return None
+            return []
         except Exception as exc:
             conn.close()
             raise exc
