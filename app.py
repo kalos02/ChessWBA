@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-# This project was developed with assistance from AI tools (ChatGPT and GitHub Copilot) for guidance and optimization. All logic and understanding were implemented and reviewed by the author.
+# This project was developed with assistance from AI tools (ChatGPT and GitHub Copilot) for guidance and optimization. 
+# All logic and understanding were implemented and reviewed by the author [(Kaylib Banks)].
 # Recommended: Python 3.x and install requirements.txt
 # Run with Python 3.13.11 directly if dependencies are installed globally: py -3.13 app.py
 """
