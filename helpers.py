@@ -1,115 +1,118 @@
+# -*- coding: utf-8 -*-
+"""
+ChessWBA helper utilities (backend)
+
+Purpose:
+- login_required decorator for protecting endpoints
+- ranking rules logic for match outcomes and rank updates
+- utility functions for avatar file handling and initials
+
+Connections:
+- Used by `app.py` for auth checks and match calculations
+"""
+
 from functools import wraps
-from flask import session, redirect, flash
-import math
+from flask import redirect, session
 
-
+# -----------------------------------------------------------------------------
+# Authentication Helper
+# -----------------------------------------------------------------------------
 def login_required(f):
-    """Decorator to require login for routes"""
+    """Redirect anonymous users to login before protected views."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if session.get("user_id") is None:
-            flash("You must be logged in to access this page.", "error")
-            return redirect("/login")
+            return redirect("/login")   
         return f(*args, **kwargs)
     return decorated_function
 
 
-def apply_ranking_rules(p1, p2, winner_id):
-    """
-    Apply ranking rules to determine new ranks.
-    Returns tuple (new_p1_rank, new_p2_rank)
-    
-    Rules:
-    - Lower rank number = better rank
-    - Draw: if diff > 1, lower ranked player improves by 1
-    - Upset win: if lower ranked wins, higher ranked += 1, lower ranked += floor(diff/2)
-    """
-    p1_rank = p1["rank"]
-    p2_rank = p2["rank"]
-    rank_diff = abs(p1_rank - p2_rank)
-    
-    if winner_id is None:
-        # Draw
-        if rank_diff > 1:
-            if p1_rank > p2_rank:
-                return (p1_rank - 1, p2_rank)
-            else:
-                return (p1_rank, p2_rank - 1)
-        return (p1_rank, p2_rank)
-    
-    elif winner_id == p1["id"]:
-        # Player 1 wins
-        if p1_rank < p2_rank:
-            # P1 is higher ranked (expected win)
-            return (p1_rank, p2_rank - int(math.floor(rank_diff / 2)))
-        else:
-            # P1 is lower ranked (upset)
-            return (p1_rank + int(math.floor(rank_diff / 2)), p2_rank + 1)
-    
-    else:
-        # Player 2 wins
-        if p2_rank < p1_rank:
-            # P2 is higher ranked (expected win)
-            return (p1_rank - int(math.floor(rank_diff / 2)), p2_rank)
-        else:
-            # P2 is lower ranked (upset)
-            return (p1_rank + 1, p2_rank + int(math.floor(rank_diff / 2)))
-
-
+# -----------------------------------------------------------------------------
+# Ranking Rules
+# -----------------------------------------------------------------------------
 def preview_ranking_rules(p1_rank, p2_rank, winner_position):
     """
-    Preview ranking changes without modifying state.
-    winner_position: 'p1', 'p2', or 'draw'
-    Returns tuple (new_p1_rank, new_p2_rank)
+    Exact ranking rules as per the Netstock assignment:
+    - Higher-ranked player = lower rank number
+    - If higher wins -> no change
+    - Draw -> lower-ranked gains 1 position (unless adjacent)
+    - Lower beats higher -> higher moves down 1, lower moves up by floor(diff/2)
     """
-    rank_diff = abs(p1_rank - p2_rank)
-    
+    if p1_rank < p2_rank:
+        higher_rank = p1_rank
+        lower_rank = p2_rank
+        p1_is_higher = True
+    else:
+        higher_rank = p2_rank
+        lower_rank = p1_rank
+        p1_is_higher = False
+
+    diff = lower_rank - higher_rank
+
     if winner_position == "draw":
-        # Draw
-        if rank_diff > 1:
-            if p1_rank > p2_rank:
-                return (p1_rank - 1, p2_rank)
-            else:
-                return (p1_rank, p2_rank - 1)
-        return (p1_rank, p2_rank)
-    
-    elif winner_position == "p1":
-        # Player 1 wins
-        if p1_rank < p2_rank:
-            # P1 is higher ranked (expected win)
-            return (p1_rank, p2_rank - int(math.floor(rank_diff / 2)))
+        if diff > 1:
+            new_lower = lower_rank - 1
+            new_higher = higher_rank
         else:
-            # P1 is lower ranked (upset)
-            return (p1_rank + int(math.floor(rank_diff / 2)), p2_rank + 1)
-    
-    else:  # winner_position == "p2"
-        # Player 2 wins
-        if p2_rank < p1_rank:
-            # P2 is higher ranked (expected win)
-            return (p1_rank - int(math.floor(rank_diff / 2)), p2_rank)
+            new_lower = lower_rank
+            new_higher = higher_rank
+
+    elif winner_position == "p1":          # Player 1 wins
+        if p1_is_higher:
+            # Higher-ranked wins -> no change
+            new_higher = higher_rank
+            new_lower = lower_rank
         else:
-            # P2 is lower ranked (upset)
-            return (p1_rank + 1, p2_rank + int(math.floor(rank_diff / 2)))
+            # Lower-ranked (p1) upsets higher-ranked (p2)
+            new_higher = higher_rank + 1
+            new_lower = lower_rank - (diff // 2)
+
+    else:  # winner_position == "p2" -> Player 2 wins
+        if not p1_is_higher:
+            # Higher-ranked wins -> no change
+            new_higher = higher_rank
+            new_lower = lower_rank
+        else:
+            # Lower-ranked (p2) upsets higher-ranked (p1)
+            new_higher = higher_rank + 1
+            new_lower = lower_rank - (diff // 2)
+
+    # Return new ranks in original order (p1, p2)
+    if p1_is_higher:
+        return new_higher, new_lower
+    else:
+        return new_lower, new_higher
+
+
+def apply_ranking_rules(p1, p2, winner_id):
+    """Resolve winner side and apply ranking rules for persisted matches."""
+    if winner_id == p1["id"]:
+        pos = "p1"
+    elif winner_id == p2["id"]:
+        pos = "p2"
+    else:
+        pos = "draw"
+    
+    return preview_ranking_rules(p1["rank"], p2["rank"], pos)
 
 
 def resequence_ranks(db):
-    """
-    Normalize ranks after a match to avoid gaps.
-    Sets ranks from 1 to N based on current rank order.
-    """
-    users = db.execute("SELECT id FROM users ORDER BY rank ASC")
-    for i, user in enumerate(users, start=1):
-        db.execute("UPDATE users SET rank = ? WHERE id = ?", i, user["id"])
+    """Renumber all ranks from 1 to n with no gaps after changes"""
+    rows = db.execute("SELECT id FROM ChessAdminApp_player ORDER BY ranking ASC")
+    for i, row in enumerate(rows, start=1):
+        db.execute("UPDATE ChessAdminApp_player SET ranking = ? WHERE id = ?", i, row["id"])
 
 
+# -----------------------------------------------------------------------------
+# Misc Utility Helpers
+# -----------------------------------------------------------------------------
 def allowed_file(filename):
-    """Check if file extension is allowed for avatars"""
-    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    """Allow only image file extensions used by profile uploads."""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in {"jpg", "jpeg", "png", "gif"}
 
 
 def get_initials(first_name, last_name):
-    """Get 2-letter initials from names"""
-    if not first_name or not last_name:
-        return "U"
-    return (first_name[0] + last_name[0]).upper()
+    """Return up to two initials for avatar placeholders."""
+    fn = first_name[0].upper() if first_name else ""
+    ln = last_name[0].upper() if last_name else ""
+    return (fn + ln)[:2]

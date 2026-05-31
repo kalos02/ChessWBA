@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chess Club{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            --nav-hover-text: var(--accent-alt);
+            --nav-hover-bg: rgba(255, 255, 255, 0.08);
+            background: rgba(12, 12, 12, 0.94);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .top-nav-inner {
+            width: 100%;
+            margin: 0;
+            padding: 12px 16px;
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .top-nav a {
+            color: #f3f3f0;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            transition: color 0.16s ease, background-color 0.16s ease;
+        }
+
+        .top-nav a:hover {
+            text-decoration: none;
+            color: var(--nav-hover-text);
+            background: var(--nav-hover-bg);
+        }
+
+        .page-shell {
+            width: 100%;
+            margin: 0;
+            padding: 16px;
+        }
+
+        .site-footer {
+            width: 100%;
+            padding: 12px 16px 18px;
+            color: #9f9f99;
+            font-size: 0.84rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="top-nav-inner">
+            <a href="/">Dashboard</a>
+            <a href="/members">Members</a>
+            <a href="/history">Matches</a>
+        </div>
+    </nav>
+
+    <main class="page-shell">
+        {% with flashed_messages = get_flashed_messages(with_categories=true) %}
+            {% if flashed_messages %}
+                <div class="flash-messages">
+                    {% for category, message in flashed_messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">Chess Club App - CS50 Final Project</footer>
+</body>
+</html>
